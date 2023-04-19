@@ -875,8 +875,8 @@ mod python {
             Ok(converted)
         }
 
-        fn add_version(&self, time: String, path: String) -> PyResult<PyVersion> {
-            let version = api2py_error(self.inner.upload_version(time, path))?;
+        fn add_version(&self, path: String, description: Option<String>) -> PyResult<PyVersion> {
+            let version = api2py_error(self.inner.upload_version(path, description))?;
             Ok(PyVersion{inner: version})
         }
 
@@ -893,12 +893,12 @@ mod python {
             Ok(converted)
         }
 
-        fn add_test_run(&self, data: Vec<&PyAny>) -> PyResult<PyPerformance> {
+        fn add_test_run(&self, data: Vec<&PyAny>, description: Option<String>) -> PyResult<PyPerformance> {
             let mut converted = Vec::with_capacity(data.len());
             for obj in data {
                 converted.push(py_to_json(obj)?);
             }
-            let run = api2py_error(self.inner.store_run(converted))?;
+            let run = api2py_error(self.inner.store_run(converted, description))?;
             Ok(PyPerformance{inner: run})
         }
 
@@ -957,6 +957,16 @@ mod python {
         fn delete_predictions(&self) -> PyResult<()> {
             api2py_error(self.inner.delete_predictions())
         }
+
+        #[getter]
+        pub fn description(&self) -> PyResult<String> {
+            Ok(self.inner.description())
+        }
+
+        #[setter]
+        pub fn set_description(&mut self, description: String) -> PyResult<()> {
+            api2py_error(self.inner.update_description(description))
+        }
     }
 
     #[pyclass(name="TestRun")]
@@ -982,6 +992,16 @@ mod python {
                 converted.push(json_to_py(py, fold));
             }
             Ok(converted)
+        }
+
+        #[getter]
+        pub fn description(&self) -> PyResult<String> {
+            Ok(self.inner.description())
+        }
+
+        #[setter]
+        pub fn set_description(&mut self, description: String) -> PyResult<()> {
+            api2py_error(self.inner.update_description(description))
         }
     }
 

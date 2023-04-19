@@ -353,14 +353,19 @@ class Model:
     def versions(self) -> list[Version]:
         ...
 
-    def add_version(self, time: str, path: str) -> Version:
+    def add_version(self, path: str, description: str | None = None) -> Version:
         ...
 
     def remove_version(self, version: Version):
         ...
 
     @property
-    def test_runs(self, data: list[typing.Any]) -> TestRun:
+    def test_runs(self) -> list[TestRun]:
+        ...
+
+    def add_test_run(self,
+                     data: list[typing.Any],
+                     description: str | None = None) -> TestRun:
         ...
 
     def delete_test_run(self, run: TestRun):
@@ -389,6 +394,14 @@ class Version:
     def delete_predictions(self):
         ...
 
+    @property
+    def description(self) -> str:
+        ...
+
+    @description.setter
+    def description(self, description: str):
+        ...
+
 
 class TestRun:
 
@@ -397,4 +410,12 @@ class TestRun:
 
     @property
     def data(self) -> list[typing.Any]:
+        ...
+
+    @property
+    def description(self) -> str:
+        ...
+
+    @description.setter
+    def description(self, description: str):
         ...

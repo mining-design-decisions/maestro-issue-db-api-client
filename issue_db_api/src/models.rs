@@ -32,7 +32,7 @@ pub(crate) struct UnboundModelConfig {
 pub(crate) struct UnboundModelVersion {
     pub(crate) model_id: String,
     pub(crate) version_id: String,
-    pub(crate) time: String,
+    pub(crate) description: String,
 }
 
 impl UnboundModelVersion {
@@ -41,7 +41,7 @@ impl UnboundModelVersion {
             api,
             model: self.model_id,
             version: self.version_id,
-            time: self.time
+            description: self.description
         }
     }
 }
@@ -50,12 +50,18 @@ impl UnboundModelVersion {
 #[derive(Debug, serde::Deserialize)]
 pub(crate) struct UnboundTestRun {
     pub(crate) model_id: String,
-    pub(crate) performance_id: String
+    pub(crate) performance_id: String,
+    pub(crate) description: String
 }
 
 impl UnboundTestRun {
     fn into_bound_test_run(self, api: Arc<IssueAPI>) -> TestRun {
-        TestRun{api, model: self.model_id, run: self.performance_id}
+        TestRun{
+            api,
+            model: self.model_id,
+            run: self.performance_id,
+            description: self.description
+        }
     }
 }
 
@@ -161,11 +167,28 @@ impl Model {
         Ok(())
     }
 
-    pub fn upload_version(&self, time: String, path: String) -> APIResult<ModelVersion> {
+    pub fn upload_version(&self, path: String, description: Option<String>) -> APIResult<ModelVersion> {
         let id = self.api.upload_model_version(
-            self.id.clone(), time.clone(), path
+            self.id.clone(), path
         )?;
-        let v = ModelVersion{api: self.api.clone(), model: self.id.clone(), version: id, time};
+        let v = if let Some(text) = description {
+            self.api.update_version_description(self.id.clone(),
+                                                id.clone(),
+                                                text.clone())?;
+            ModelVersion{
+                api: self.api.clone(),
+                model: self.id.clone(),
+                version: id,
+                description: text
+            }
+        } else {
+            ModelVersion{
+                api: self.api.clone(),
+                model: self.id.clone(),
+                version: id,
+                description: String::new()
+            }
+        };
         Ok(v)
     }
 
@@ -193,9 +216,26 @@ impl Model {
         Ok(converted)
     }
 
-    pub fn store_run(&self, data: Vec<Value>) -> APIResult<TestRun> {
+    pub fn store_run(&self, data: Vec<Value>, description: Option<String>) -> APIResult<TestRun> {
         let id = self.api.store_model_performance(self.id.clone(), data)?;
-        let run = TestRun{api: self.api.clone(), model: self.id.clone(), run: id};
+        let run = if let Some(text) = description {
+            self.api.update_performance_description(self.id.clone(),
+                                                    id.clone(),
+                                                    text.clone())?;
+            TestRun{
+                api: self.api.clone(),
+                model: self.id.clone(),
+                run: id,
+                description: text
+            }
+        } else {
+            TestRun{
+                api: self.api.clone(),
+                model: self.id.clone(),
+                run: id,
+                description: String::new()
+            }
+        };
         Ok(run)
     }
 
@@ -210,7 +250,7 @@ pub struct ModelVersion {
     api: Arc<IssueAPI>,
     model: String,
     version: String,
-    time: String
+    description: String
 }
 
 impl PartialEq for ModelVersion {
@@ -238,8 +278,16 @@ impl ModelVersion {
         &self.version
     }
 
-    pub fn time(&self) -> &String {
-        &self.time
+    pub fn description(&self) -> String {
+        self.description.clone()
+    }
+
+    pub fn update_description(&mut self, description: String) -> APIResult<()> {
+        self.api.update_version_description(
+            self.model.clone(), self.version.clone(), description.clone()
+        )?;
+        self.description = description;
+        Ok(())
     }
 
     pub fn download(&self, path: String) -> APIResult<()> {
@@ -266,7 +314,8 @@ impl ModelVersion {
 pub struct TestRun {
     api: Arc<IssueAPI>,
     model: String,
-    run: String
+    run: String,
+    description: String
 }
 
 #[allow(unused)]
@@ -281,5 +330,17 @@ impl TestRun {
 
     pub fn data(&self) -> APIResult<Vec<Value>> {
         self.api.get_performance_data(self.model.clone(), self.run.clone())
+    }
+
+    pub fn description(&self) -> String {
+        self.description.clone()
+    }
+
+    pub fn update_description(&mut self, description: String) -> APIResult<()> {
+        self.api.update_performance_description(
+            self.model.clone(), self.run.clone(), description.clone()
+        )?;
+        self.description = description;
+        Ok(())
     }
 }

@@ -71,6 +71,7 @@ enum Verb {
     Get,
     Post,
     Patch,
+    Put,
     Delete
 }
 
@@ -337,6 +338,16 @@ impl IssueAPI {
             }
             Verb::Patch => {
                 let result: O = self.client.patch(self.get_endpoint(suffix))
+                    .json(&payload)
+                    .header("Authorization", self.get_auth()?)
+                    .send()?
+                    .error_for_status()?
+                    .json::<O>()
+                    .expect("Received invalid response from server.");
+                Ok(result)
+            }
+            Verb::Put => {
+                let result: O = self.client.put(self.get_endpoint(suffix))
                     .json(&payload)
                     .header("Authorization", self.get_auth()?)
                     .send()?
@@ -854,7 +865,7 @@ impl IssueAPI {
         #[derive(Debug, serde::Deserialize)]
         struct RawVersionInfo {
             version_id: String,
-            time: String
+            description: String
         }
         #[derive(Debug, serde::Deserialize)]
         struct VersionsResponse {
@@ -869,7 +880,7 @@ impl IssueAPI {
                 UnboundModelVersion{
                     model_id: model_id.clone(),
                     version_id: v.version_id,
-                    time: v.time
+                    description: v.description
                 }
             )
             .collect();
@@ -878,15 +889,13 @@ impl IssueAPI {
 
     pub(crate) fn upload_model_version(&self,
                                        model_id: String,
-                                       time: String,
                                        file: String) -> APIResult<String> {
         #[derive(Debug, serde::Deserialize)]
         struct NewVersionResponse {
             version_id: String
         }
         let form = multipart::Form::new()
-            .file("file", file)?
-            .text("time", time);
+            .file("file", file)?;
         let endpoint = format!("models/{}/versions", model_id);
         let result = self.client
             .post(self.get_endpoint(endpoint.as_str()))
@@ -922,6 +931,16 @@ impl IssueAPI {
         self.call_endpoint_json(
             endpoint.as_str(), Verb::Delete, Value::Object(Map::new())
         )
+    }
+
+    pub(crate) fn update_version_description(&self,
+                                             model_id: String,
+                                             version_id: String,
+                                             description: String) -> APIResult<()> {
+        let endpoint = format!("models/{}/versions/{}/description", model_id, version_id);
+        let mut map = Map::new();
+        map.insert("description".to_string(), Value::String(description));
+        self.call_endpoint_json(endpoint.as_str(), Verb::Put, Value::Object(map))
     }
 
     /***************************************************************************
@@ -975,8 +994,13 @@ impl IssueAPI {
 
     pub(crate) fn get_performances_for_model(&self, model_id: String) -> APIResult<Vec<UnboundTestRun>> {
         #[derive(Debug, serde::Deserialize)]
+        struct PerformancesInfo {
+            performance_id: String,
+            description: String
+        }
+        #[derive(Debug, serde::Deserialize)]
         struct PerformancesResponse {
-            performances: Vec<String>
+            performances: Vec<PerformancesInfo>
         }
         let endpoint = format!("models/{}/performances", model_id.as_str());
         let result = self.call_endpoint_json::<_, PerformancesResponse>(
@@ -984,8 +1008,11 @@ impl IssueAPI {
         )?;
         let converted = result.performances
             .into_iter()
-            .map(|r| UnboundTestRun{model_id: model_id.clone(), performance_id: r})
-            .collect();
+            .map(|r| UnboundTestRun{
+                model_id: model_id.clone(),
+                performance_id: r.performance_id,
+                description: r.description
+            }).collect();
         Ok(converted)
     }
 
@@ -1011,6 +1038,7 @@ impl IssueAPI {
         #[derive(Debug, serde::Deserialize)]
         struct PerformanceDataResponse {
             performance_id: String,
+            description: String,
             performance: Vec<Value>
         }
         let endpoint = format!("models/{}/performances/{}", model_id, performance_id);
@@ -1027,5 +1055,15 @@ impl IssueAPI {
         self.call_endpoint_json(
             endpoint.as_str(), Verb::Delete, Value::Object(Map::new())
         )
+    }
+
+    pub(crate) fn update_performance_description(&self,
+                                                 model_id: String,
+                                                 performance_id: String,
+                                                 description: String) -> APIResult<()> {
+        let endpoint = format!("models/{}/performances/{}/description", model_id, performance_id);
+        let mut map = Map::new();
+        map.insert("description".to_string(), Value::String(description));
+        self.call_endpoint_json(endpoint.as_str(), Verb::Put, Value::Object(map))
     }
 }
