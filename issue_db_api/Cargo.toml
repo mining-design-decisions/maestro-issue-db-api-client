@@ -1,0 +1,20 @@
+[package]
+name = "issue-api-client"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "issue_api"
+crate-type = ["cdylib"]
+
+[features]
+default = ["blocking"]
+blocking = ["reqwest/blocking"]
+
+[dependencies]
+serde = { version = "1.0.156", features = ["derive"] }
+serde_json = "1.0.94"
+lazy_static = "1.4.0"
+lazy-init = "0.5.1"
+reqwest = { version = "0.11.16", features = ["json", "multipart"] }
+pyo3 = { version = "0.18.2", optional = true, features = ["extension-module"]}

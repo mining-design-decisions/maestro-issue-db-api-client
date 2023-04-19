@@ -1,0 +1,3 @@
+include issue_db_api/Cargo.toml
+include issue_db_api/issue_api.pyi
+recursive-include issue_db_api/src *

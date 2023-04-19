@@ -1,0 +1,9 @@
+dist
+target
+issue_db_api.egg-info
+.idea 
+__pycache__
+
+*.pyd
+*.pyc
+Cargo.lock 
