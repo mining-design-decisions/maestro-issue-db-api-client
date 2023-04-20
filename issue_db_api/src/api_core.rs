@@ -309,7 +309,7 @@ impl IssueAPI {
         if self.token.is_none() {
             Err(Box::try_from(AuthenticationError {}).unwrap())
         } else {
-            Ok(self.token.unwrap().clone())
+            Ok(self.token.clone().unwrap())
         }
     }
 
