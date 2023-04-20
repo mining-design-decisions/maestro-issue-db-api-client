@@ -13,7 +13,10 @@ class IssueRepository:
     def __repr__(self) -> str:
         ...
 
-    def search(self, q: Query) -> list[Issue]:
+    def search(self, /,
+               q: Query, *,
+               attributes: list[str] = (),
+               load_labels: bool = False) -> list[Issue]:
         ...
 
     @property
@@ -130,11 +133,11 @@ class Issue:
         ...
 
     @property
-    def manual_label(self) -> str:
+    def manual_label(self) -> Label:
         ...
 
     @manual_label.setter
-    def manual_label(self, value: str) -> str:
+    def manual_label(self, value: Label):
         ...
 
     def invalidate_label_cache(self):
