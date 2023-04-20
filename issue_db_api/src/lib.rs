@@ -142,7 +142,7 @@ mod python {
         #[new]
         #[pyo3(signature=(
             url, *,
-            credentials,
+            credentials=None,
             label_caching_policy="no_caching",
             config_handling_policy="read_fetch_write_fetch",
             allow_self_signed_certificates=false
@@ -280,6 +280,11 @@ mod python {
                 .map(|m| PyModel{inner: m})
                 .collect();
             Ok(result)
+        }
+
+        fn get_model_by_id(&self, id: String) -> PyResult<PyModel> {
+            let m = PyModel{inner: api2py_error(self.repo.get_model_by_id(id))?};
+            Ok(m)
         }
 
         fn add_model(&self, name: String, config: HashMap<String, &PyAny>) -> PyResult<PyModel> {
@@ -846,6 +851,11 @@ mod python {
         }
 
         #[getter]
+        fn identifier(&self) -> PyResult<String> {
+            Ok(self.inner.identifier())
+        }
+
+        #[getter]
         fn name(&self) -> PyResult<String> {
             api2py_error(self.inner.name())
         }
@@ -884,6 +894,11 @@ mod python {
             Ok(converted)
         }
 
+        fn get_version_by_id(&self, id: String) -> PyResult<PyVersion> {
+            let v = PyVersion{inner: api2py_error(self.inner.get_version_by_id(id))?};
+            Ok(v)
+        }
+
         fn add_version(&self, path: String, description: Option<String>) -> PyResult<PyVersion> {
             let version = api2py_error(self.inner.upload_version(path, description))?;
             Ok(PyVersion{inner: version})
@@ -900,6 +915,11 @@ mod python {
                 .map(|r| PyPerformance{inner: r})
                 .collect();
             Ok(converted)
+        }
+
+        fn get_run_by_id(&self, id: String) -> PyResult<PyPerformance> {
+            let r = PyPerformance{inner: api2py_error(self.inner.get_run_by_id(id))?};
+            Ok(r)
         }
 
         fn add_test_run(&self, data: Vec<&PyAny>, description: Option<String>) -> PyResult<PyPerformance> {
@@ -938,6 +958,16 @@ mod python {
                 CompareOp::Ne => (self.inner != other.inner).into_py(py),
                 _ => py.NotImplemented(),
             }
+        }
+
+        #[getter]
+        fn model_id(&self) -> PyResult<String> {
+            Ok(self.inner.model_id())
+        }
+
+        #[getter]
+        fn version_id(&self) -> PyResult<String> {
+            Ok(self.inner.version_id())
         }
 
         fn download(&self, path: String) -> PyResult<()> {
@@ -991,6 +1021,16 @@ mod python {
                 "<TestRun|model_id={}, id={}>", self.inner.model_id(), self.inner.run_id()
             );
             Ok(text)
+        }
+
+        #[getter]
+        fn model_id(&self) -> PyResult<String> {
+            Ok(self.inner.model_id())
+        }
+
+        #[getter]
+        fn run_id(&self) -> PyResult<String> {
+            Ok(self.inner.run_id())
         }
 
         #[getter]

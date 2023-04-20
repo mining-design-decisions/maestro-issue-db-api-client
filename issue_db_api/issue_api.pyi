@@ -41,6 +41,9 @@ class IssueRepository:
     def models(self) -> list[Model]:
         ...
 
+    def get_model_by_id(self, id: str) -> Model:
+        ...
+
     def add_model(self, name: str, config: dict[str, typing.Any]) -> Model:
         ...
 
@@ -335,6 +338,10 @@ class Model:
         ...
 
     @property
+    def identifier(self) -> str:
+        ...
+
+    @property
     def name(self) -> str:
         ...
 
@@ -354,6 +361,9 @@ class Model:
     def versions(self) -> list[Version]:
         ...
 
+    def get_version_by_id(self, id: str) -> Version:
+        ...
+
     def add_version(self, path: str, description: str | None = None) -> Version:
         ...
 
@@ -362,6 +372,9 @@ class Model:
 
     @property
     def test_runs(self) -> list[TestRun]:
+        ...
+
+    def get_run_by_id(self, id: str) -> TestRun:
         ...
 
     def add_test_run(self,
@@ -379,6 +392,14 @@ class Version:
         ...
 
     def __eq__(self, other) -> bool:
+        ...
+
+    @property
+    def model_id(self) -> str:
+        ...
+
+    @property
+    def version_id(self) -> str:
         ...
 
     def download(self, path: str):
@@ -407,6 +428,14 @@ class Version:
 class TestRun:
 
     def __repr__(self) -> str:
+        ...
+
+    @property
+    def model_id(self) -> str:
+        ...
+
+    @property
+    def run_id(self) -> str:
         ...
 
     @property

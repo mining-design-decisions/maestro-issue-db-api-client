@@ -5,6 +5,7 @@ use serde_json::Value;
 use crate::api_core::IssueAPI;
 use crate::APIResult;
 use crate::config::ConfigHandlingPolicy;
+use crate::errors::APIError;
 use crate::util::CacheContainer;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -111,8 +112,8 @@ impl Model {
         }
     }
 
-    pub(crate) fn identifier(&self) -> &String {
-        &self.id
+    pub fn identifier(&self) -> String {
+        self.id.clone()
     }
 
     pub fn name(&self) -> APIResult<String> {
@@ -207,6 +208,19 @@ impl Model {
         Ok(converted)
     }
 
+    pub fn get_version_by_id(&self, id: String) -> APIResult<ModelVersion> {
+        let versions = self.model_versions()?;
+        let version = versions.into_iter()
+            .find(|v| v.version == id);
+        match version {
+            None => {
+                let text = format!("Could not find version with ID {id}");
+                Err(Box::new(APIError::new(text)))
+            },
+            Some(v) => Ok(v)
+        }
+    }
+
     pub fn model_runs(&self) -> APIResult<Vec<TestRun>> {
         let runs = self.api.get_performances_for_model(self.id.clone())?;
         let converted = runs
@@ -237,6 +251,19 @@ impl Model {
             }
         };
         Ok(run)
+    }
+
+    pub fn get_run_by_id(&self, id: String) -> APIResult<TestRun> {
+        let runs = self.model_runs()?;
+        let run = runs.into_iter()
+            .find(|r| r.run == id);
+        match run {
+            None => {
+                let text = format!("Could not find test run with ID {id}");
+                Err(Box::new(APIError::new(text)))
+            },
+            Some(v) => Ok(v)
+        }
     }
 
     pub fn delete_run(&self, run: TestRun) -> APIResult<()> {
@@ -270,12 +297,12 @@ impl Hash for ModelVersion {
 
 #[allow(unused)]
 impl ModelVersion {
-    pub(crate) fn model_id(&self) -> &String {
-        &self.model
+    pub fn model_id(&self) -> String {
+        self.model.clone()
     }
 
-    pub(crate) fn version_id(&self) -> &String {
-        &self.version
+    pub fn version_id(&self) -> String {
+        self.version.clone()
     }
 
     pub fn description(&self) -> String {
@@ -320,12 +347,12 @@ pub struct TestRun {
 
 #[allow(unused)]
 impl TestRun {
-    pub(crate) fn model_id(&self) -> &String {
-        &self.model
+    pub fn model_id(&self) -> String {
+        self.model.clone()
     }
 
-    pub(crate) fn run_id(&self) -> &String {
-        &self.run
+    pub fn run_id(&self) -> String {
+        self.run.clone()
     }
 
     pub fn data(&self) -> APIResult<Vec<Value>> {

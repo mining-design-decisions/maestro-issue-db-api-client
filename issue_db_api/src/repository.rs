@@ -139,6 +139,18 @@ impl IssueRepository {
             ).collect();
         Ok(converted)
     }
+    
+    pub fn get_model_by_id(&self, id: String) -> APIResult<Model> {
+        let raw = self.api.get_model_config(id)?;
+        let model = Model::new(
+            self.api.clone(),
+            raw.model_id,
+            raw.model_name,
+            Some(raw.model_config),
+            self.config_handling
+        );
+        Ok(model)
+    }
 
     pub fn add_model(&self, name: String, config: HashMap<String, Value>) -> APIResult<Model> {
         let id = self.api.create_model_config(name.clone(), config.clone())?;
