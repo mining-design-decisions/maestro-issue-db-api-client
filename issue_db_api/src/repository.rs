@@ -25,10 +25,11 @@ pub struct IssueRepository {
 impl IssueRepository {
     pub fn new_read_only(url: String,
                          label_caching_policy: CachingPolicy,
-                         config_handling_policy: ConfigHandlingPolicy) -> APIResult<Self> {
+                         config_handling_policy: ConfigHandlingPolicy,
+                         allow_self_signed_certs: bool) -> APIResult<Self> {
         Ok(
             Self{
-                api: Arc::new(IssueAPI::new_read_only(url)),
+                api: Arc::new(IssueAPI::new_read_only(url, allow_self_signed_certs)?),
                 label_caching: label_caching_policy,
                 config_handling: config_handling_policy
             }
@@ -39,8 +40,9 @@ impl IssueRepository {
                username: String,
                password: String,
                label_caching_policy: CachingPolicy,
-               config_handling_policy: ConfigHandlingPolicy) -> APIResult<Self> {
-        let api = Arc::new(IssueAPI::new(url, username, password)?);
+               config_handling_policy: ConfigHandlingPolicy,
+               allow_self_signed_certs: bool) -> APIResult<Self> {
+        let api = Arc::new(IssueAPI::new(url, username, password, allow_self_signed_certs)?);
         Ok(
             Self{
                 api,

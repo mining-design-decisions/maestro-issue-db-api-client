@@ -140,11 +140,18 @@ mod python {
     #[pymethods]
     impl PyIssueRepository {
         #[new]
-        #[pyo3(signature=(url, *, credentials, label_caching_policy="no_caching", config_handling_policy="read_fetch_write_fetch"))]
+        #[pyo3(signature=(
+            url, *,
+            credentials,
+            label_caching_policy="no_caching",
+            config_handling_policy="read_fetch_write_fetch",
+            allow_self_signed_certificates=false
+        ))]
         fn __new__(url: String,
                    credentials: Option<(String, String)>,
                    label_caching_policy: &str,
-                   config_handling_policy: &str) -> PyResult<Self> {
+                   config_handling_policy: &str,
+                   allow_self_signed_certificates: bool) -> PyResult<Self> {
             let caching = match label_caching_policy {
                 "no_caching" => CachingPolicy::NoCaching,
                 "use_local_after_load" => CachingPolicy::UseLocalAfterLoad,
@@ -168,14 +175,16 @@ mod python {
                                          username,
                                          password,
                                          caching,
-                                         config_handling),
+                                         config_handling,
+                                         allow_self_signed_certificates),
                     true
                 )
             } else {
                 (
                     IssueRepository::new_read_only(url.clone(),
                                                    caching,
-                                                   config_handling),
+                                                   config_handling,
+                                                   allow_self_signed_certificates),
                     false
                 )
             };

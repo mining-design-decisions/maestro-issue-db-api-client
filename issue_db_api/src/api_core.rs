@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 #[cfg(feature = "blocking")]
 use reqwest::blocking::Client;
-use reqwest::blocking::multipart;
+use reqwest::blocking::{ClientBuilder, multipart};
 
 use serde_json::{Map, Value};
 use lazy_init::Lazy;
@@ -260,14 +260,20 @@ impl IssueData {
 #[allow(unused)]
 #[cfg(feature = "blocking")]
 impl IssueAPI {
-    pub(crate) fn new(url: String, username: String, password: String) -> APIResult<Self> {
-        let mut read_only_api = Self::new_read_only(url);
+    pub(crate) fn new(url: String,
+                      username: String,
+                      password: String,
+                      allow_self_signed: bool) -> APIResult<Self> {
+        let mut read_only_api = Self::new_read_only(url, allow_self_signed)?;
         read_only_api.login(username, password)?;
         Ok(read_only_api)
     }
 
-    pub(crate) fn new_read_only(url: String) -> Self {
-        IssueAPI{url, token: None, client: Client::new()}
+    pub(crate) fn new_read_only(url: String, allow_self_signed: bool) -> APIResult<Self> {
+        let client = ClientBuilder::new()
+            .danger_accept_invalid_certs(allow_self_signed)
+            .build()?;
+        Ok(IssueAPI{url, token: None, client})
     }
 
     fn login(&mut self, username: String, password: String) -> APIResult<()> {
@@ -303,8 +309,35 @@ impl IssueAPI {
         if self.token.is_none() {
             Err(Box::try_from(AuthenticationError {}).unwrap())
         } else {
-            Ok("Bearer ".to_string() + self.token.clone().unwrap().as_str())
+            Ok(self.token.unwrap().clone())
         }
+    }
+
+    fn build_request_base(&self, suffix: &str, verb: Verb) -> APIResult<reqwest::blocking::RequestBuilder> {
+        let url = self.get_endpoint(suffix);
+        let request_base = match verb {
+            Verb::Get => self.client.get(url),
+            Verb::Post => self.client.post(url).bearer_auth(self.get_auth()?),
+            Verb::Patch => self.client.patch(url).bearer_auth(self.get_auth()?),
+            Verb::Put => self.client.put(url).bearer_auth(self.get_auth()?),
+            Verb::Delete => self.client.delete(url).bearer_auth(self.get_auth()?)
+        };
+        Ok(request_base)
+    }
+
+    fn handle_error_status(&self,
+                           response: reqwest::blocking::Response) -> APIResult<reqwest::blocking::Response> {
+        Ok(response.error_for_status()?)
+    }
+
+    fn unpack_response<O>(&self, response: reqwest::blocking::Response) -> APIResult<O>
+    where
+        O: for <'de> serde::Deserialize<'de>
+    {
+        let result = self.handle_error_status(response)?
+            .json::<O>()
+            .expect("Received invalid response from server.");
+        Ok(result)
     }
 
     fn call_endpoint_json<I, O>(&self,
@@ -315,58 +348,50 @@ impl IssueAPI {
         I: serde::Serialize,
         O: for <'de> serde::Deserialize<'de>,
     {
-        //println!("{}", serde_json::to_string_pretty(&payload).unwrap());
-        match verb {
-            Verb::Get => {
-                let result = self.client.get(self.get_endpoint(suffix))
-                    .json(&payload)
-                    .send()?
-                    .error_for_status()?
-                    .json::<O>()
-                    .expect("Received invalid response from server.");
-                Ok(result)
-            }
-            Verb::Post => {
-                let result: O = self.client.post(self.get_endpoint(suffix))
-                    .json(&payload)
-                    .header("Authorization", self.get_auth()?)
-                    .send()?
-                    .error_for_status()?
-                    .json::<O>()
-                    .expect("Received invalid response from server.");
-                Ok(result)
-            }
-            Verb::Patch => {
-                let result: O = self.client.patch(self.get_endpoint(suffix))
-                    .json(&payload)
-                    .header("Authorization", self.get_auth()?)
-                    .send()?
-                    .error_for_status()?
-                    .json::<O>()
-                    .expect("Received invalid response from server.");
-                Ok(result)
-            }
-            Verb::Put => {
-                let result: O = self.client.put(self.get_endpoint(suffix))
-                    .json(&payload)
-                    .header("Authorization", self.get_auth()?)
-                    .send()?
-                    .error_for_status()?
-                    .json::<O>()
-                    .expect("Received invalid response from server.");
-                Ok(result)
-            }
-            Verb::Delete => {
-                let result: O = self.client.delete(self.get_endpoint(suffix))
-                    .json(&payload)
-                    .header("Authorization", self.get_auth()?)
-                    .send()?
-                    .error_for_status()?
-                    .json::<O>()
-                    .expect("Received invalid response from server.");
-                Ok(result)
-            }
-        }
+        let response = self.build_request_base(suffix, verb)?.json(&payload).send()?;
+        let result = self.unpack_response(response)?;
+        Ok(result)
+    }
+
+    fn call_endpoint_form<I, O>(&self,
+                                suffix: &str,
+                                verb: Verb,
+                                payload: &I) -> APIResult<O>
+        where
+            I: serde::Serialize + ?Sized,
+            O: for <'de> serde::Deserialize<'de>,
+    {
+        let response = self.build_request_base(suffix, verb)?.form(payload).send()?;
+        let result = self.unpack_response(response)?;
+        Ok(result)
+    }
+
+    fn call_endpoint_multipart<O>(&self,
+                                  suffix: &str,
+                                  verb: Verb,
+                                  payload: multipart::Form) -> APIResult<O>
+        where
+            O: for <'de> serde::Deserialize<'de>,
+    {
+        let response = self.build_request_base(suffix, verb)?.multipart(payload).send()?;
+        let result = self.unpack_response(response)?;
+        Ok(result)
+    }
+
+    fn call_endpoint_download<I>(&self,
+                                 suffix: &str,
+                                 verb: Verb,
+                                 payload: I,
+                                 target_path: String) -> APIResult<()>
+        where
+            I: serde::Serialize,
+    {
+        let response = self.build_request_base(suffix, verb)?.json(&payload).send()?;
+        let data = self.handle_error_status(response)?.bytes()?;
+        let mut cursor = std::io::Cursor::new(data);
+        let mut file = std::fs::File::create(target_path)?;
+        std::io::copy(&mut cursor, &mut file)?;
+        Ok(())
     }
 
     /***************************************************************************
@@ -738,26 +763,15 @@ impl IssueAPI {
     pub(crate) fn upload_embedding_binary(&self, id: String, filename: String) -> APIResult<()> {
         let form = multipart::Form::new().file("file", filename)?;
         let endpoint = format!("embeddings/{}/file", id);
-        self.client
-            .post(self.get_endpoint(endpoint.as_str()))
-            .multipart(form)
-            .header("Authorization", self.get_auth()?)
-            .send()?
-            .error_for_status()?;
-        Ok(())
+        self.call_endpoint_multipart(endpoint.as_str(), Verb::Post, form)
     }
 
     pub(crate) fn download_embedding_binary(&self, id: String, filename: String) -> APIResult<()> {
         let endpoint = format!("embeddings/{}/file", id);
-        let data = self.client
-            .get(self.get_endpoint(endpoint.as_str()))
-            .send()?
-            .error_for_status()?
-            .bytes()?;
-        let mut cursor = std::io::Cursor::new(data);
-        let mut file = std::fs::File::create(filename)?;
-        std::io::copy(&mut cursor, &mut file)?;
-        Ok(())
+        self.call_endpoint_download(endpoint.as_str(),
+                                    Verb::Get,
+                                    Value::Object(Map::new()),
+                                    filename)
     }
 
     pub(crate) fn delete_embedding_binary(&self, id: String) -> APIResult<()> {
@@ -897,31 +911,21 @@ impl IssueAPI {
         let form = multipart::Form::new()
             .file("file", file)?;
         let endpoint = format!("models/{}/versions", model_id);
-        let result = self.client
-            .post(self.get_endpoint(endpoint.as_str()))
-            .multipart(form)
-            .header("Authorization", self.get_auth()?)
-            .send()?
-            .error_for_status()?
-            .json::<NewVersionResponse>()
-            .expect("Received invalid response from server");
+        let result = self.call_endpoint_multipart::<NewVersionResponse>(
+            endpoint.as_str(), Verb::Post, form
+        )?;
         Ok(result.version_id)
     }
 
     pub(crate) fn download_model_version(&self,
                                          model_id: String,
                                          version_id: String,
-                                         file: String) -> APIResult<()> {
+                                         filename: String) -> APIResult<()> {
         let endpoint = format!("models/{}/versions/{}", model_id, version_id);
-        let data = self.client
-            .get(self.get_endpoint(endpoint.as_str()))
-            .send()?
-            .error_for_status()?
-            .bytes()?;
-        let mut cursor = std::io::Cursor::new(data);
-        let mut file = std::fs::File::create(file)?;
-        std::io::copy(&mut cursor, &mut file)?;
-        Ok(())
+        self.call_endpoint_download(endpoint.as_str(),
+                                    Verb::Get,
+                                    Value::Object(Map::new()),
+                                    filename)
     }
 
     pub(crate) fn delete_model_version(&self,
