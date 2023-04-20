@@ -250,6 +250,11 @@ mod python {
             Ok(embeddings)
         }
 
+        fn get_embedding_by_id(&self, id: String) -> PyResult<PyEmbedding> {
+            let e = PyEmbedding{inner: api2py_error(self.repo.get_embedding_by_id(id))?};
+            Ok(e)
+        }
+
         fn create_embedding(&self, name: String, config: &PyAny) -> PyResult<PyEmbedding> {
             let json = py_to_json(config)?;
             if let Value::Object(c) = json {

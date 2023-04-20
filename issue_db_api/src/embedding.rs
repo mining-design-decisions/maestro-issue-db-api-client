@@ -65,8 +65,8 @@ impl Embedding {
         Embedding{api, id, name, config, has_file, update_policy}
     }
 
-    pub fn identifier(&self) -> &String {
-        &self.id
+    pub fn identifier(&self) -> String {
+        self.id.clone()
     }
 
     pub fn name(&self) -> APIResult<String> {

@@ -110,6 +110,12 @@ impl IssueRepository {
             .collect();
         Ok(embeddings)
     }
+    
+    pub fn get_embedding_by_id(&self, id: String) -> APIResult<Embedding> {
+        let raw = self.api.get_embedding(id)?;
+        let converted = raw.into_bound_embedding(self.api.clone(), self.config_handling);
+        Ok(converted)
+    }
 
     pub fn create_embedding(&self,
                             name: String,

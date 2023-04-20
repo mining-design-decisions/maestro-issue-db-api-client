@@ -34,6 +34,9 @@ class IssueRepository:
     def embeddings(self) -> list[Embedding]:
         ...
 
+    def get_embedding_by_id(self, id: str) -> Embedding:
+        ...
+
     def create_embedding(self, name: str, config: dict[str, typing.Any]) -> Embedding:
         ...
 
