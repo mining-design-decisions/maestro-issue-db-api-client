@@ -5,6 +5,6 @@ issue_db_api.egg-info
 __pycache__
 
 *.pyd
-*.so 
+*.so
 *.pyc
 Cargo.lock 
