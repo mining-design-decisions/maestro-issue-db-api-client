@@ -632,8 +632,10 @@ impl IssueAPI {
         // Get object IDS in order to restore comment order
         let mut object_ids: Vec<u128> = Vec::with_capacity(converted.len());
         for c in converted.iter() {
-            let id = c.id
-                .parse::<u128>()
+            // let id = c.id
+            //     .parse::<u128>()
+            //     .map_err(|e| IDParsingError{msg: e.to_string()})?;
+            let id = u128::from_str_radix(c.id.as_str(), 16)
                 .map_err(|e| IDParsingError{msg: e.to_string()})?;
             object_ids.push(id);
         }
