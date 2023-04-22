@@ -40,6 +40,9 @@ class IssueRepository:
     def create_embedding(self, name: str, config: dict[str, typing.Any]) -> Embedding:
         ...
 
+    def delete_embedding(self, embedding: Embedding):
+        ...
+
     def find_issues_by_key(self, *args: tuple[str, str]) -> list[Issue]:
         ...
 
@@ -51,6 +54,9 @@ class IssueRepository:
         ...
 
     def add_model(self, name: str, config: dict[str, typing.Any]) -> Model:
+        ...
+
+    def delete_model_config(self, model: Model):
         ...
 
 
@@ -136,6 +142,10 @@ class Issue:
         ...
 
     @property
+    def identifier(self) -> str:
+        ...
+
+    @property
     def manual_label(self) -> Label:
         ...
 
@@ -165,7 +175,7 @@ class Issue:
         ...
 
     @property
-    def labelling_comments(self) -> list[str]:
+    def labelling_comments(self) -> list[Comment]:
         ...
 
     def add_labelling_comment(self, text: str):
@@ -304,6 +314,10 @@ class Embedding:
         ...
 
     def __eq__(self, other) -> bool | NotImplemented:
+        ...
+
+    @property
+    def identifier(self) -> str:
         ...
 
     @property

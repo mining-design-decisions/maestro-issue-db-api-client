@@ -31,7 +31,7 @@ impl UnboundEmbedding {
 }
 
 #[allow(unused)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Embedding {
     api: Arc<IssueAPI>,
     id: String,

@@ -265,6 +265,10 @@ mod python {
             }
         }
 
+        fn delete_embedding(&self, embedding: &PyEmbedding) -> PyResult<()> {
+            api2py_error(self.repo.delete_embedding(embedding.inner.clone()))
+        }
+
         #[pyo3(signature=(*args, attributes=vec![], load_labels=false))]
         fn find_issues_by_key(&self,
                               args: &PyTuple,
@@ -299,6 +303,11 @@ mod python {
             }
             let model = api2py_error(self.repo.add_model(name, converted))?;
             Ok(PyModel{inner: model})
+        }
+
+        fn delete_model_config(&self, model: &PyModel) -> PyResult<()> {
+            api2py_error(self.repo.delete_model_config_by_id(model.inner.identifier()))
+
         }
     }
 
@@ -496,6 +505,11 @@ mod python {
             let mut s = std::collections::hash_map::DefaultHasher::new();
             self.issue.hash(&mut s);
             Ok(s.finish())
+        }
+
+        #[getter]
+        fn identifier(&self) -> PyResult<String> {
+            Ok(self.issue.ident().clone())
         }
 
         #[getter]
@@ -788,6 +802,11 @@ mod python {
                 CompareOp::Ne => (self.inner != other.inner).into_py(py),
                 _ => py.NotImplemented(),
             }
+        }
+
+        #[getter]
+        fn identifier(&self) -> PyResult<String> {
+            Ok(self.inner.identifier())
         }
 
         #[getter]

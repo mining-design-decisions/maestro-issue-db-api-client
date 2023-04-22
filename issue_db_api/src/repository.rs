@@ -132,6 +132,10 @@ impl IssueRepository {
         Ok(embedding)
     }
 
+    pub fn delete_embedding(&self, embedding: Embedding) -> APIResult<()> {
+        self.api.delete_embedding(embedding.identifier())
+    }
+
     pub fn models(&self) -> APIResult<Vec<Model>> {
         let models = self.api.get_all_models()?;
         let converted = models
@@ -168,6 +172,14 @@ impl IssueRepository {
             self.config_handling
         );
         Ok(m)
+    }
+
+    pub fn delete_model_config(&self, model: Model) -> APIResult<()> {
+        self.api.delete_model_config(model.identifier())
+    }
+
+    pub(crate) fn delete_model_config_by_id(&self, id: String) -> APIResult<()> {
+        self.api.delete_model_config(id)
     }
 }
 
