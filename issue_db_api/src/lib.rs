@@ -409,6 +409,13 @@ mod python {
         fn not_tag(&self, name: String) -> PyResult<Self> {
             Ok(Self{query: Some(self.add_tag(name, QueryCMP::Ne)?)})
         }
+
+        fn to_json(&self, py: Python<'_>) -> PyResult<PyObject> {
+            match self.query {
+                None => Ok(py.None()),
+                Some(ref q) => Ok(json_to_py(py, q.clone().into_json()))
+            }
+        }
     }
 
     #[pyclass(name="Label")]
