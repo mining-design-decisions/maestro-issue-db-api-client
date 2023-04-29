@@ -32,7 +32,8 @@ use crate::models::{ModelInfo, UnboundModelConfig, UnboundModelVersion, UnboundT
 pub struct IssueAPI {
     url: String,
     token: Option<String>,
-    client: Client
+    client: Client,
+    debug: bool
 }
 
 #[allow(unused)]
@@ -66,6 +67,7 @@ pub struct IssueData {
 // Auxiliary structs and enums
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
+#[derive(Debug)]
 #[allow(unused)]
 enum Verb {
     Get,
@@ -273,7 +275,18 @@ impl IssueAPI {
         let client = ClientBuilder::new()
             .danger_accept_invalid_certs(allow_self_signed)
             .build()?;
-        Ok(IssueAPI{url, token: None, client})
+        println!("Debug state: {}", Self::get_debug_state()?);
+        Ok(IssueAPI{url, token: None, client, debug: Self::get_debug_state()?})
+    }
+
+    fn get_debug_state() -> APIResult<bool> {
+        match std::env::var("ISSUE_API_CLIENT_DEBUG") {
+            Ok(value) => {
+                let converted = value.to_lowercase();
+                Ok(converted == "true" || converted == "1")
+            }
+            Err(_) => Ok(false)
+        }
     }
 
     fn login(&mut self, username: String, password: String) -> APIResult<()> {
@@ -345,9 +358,13 @@ impl IssueAPI {
                                 verb: Verb,
                                 payload: I) -> APIResult<O>
     where
-        I: serde::Serialize,
+        I: serde::Serialize + std::fmt::Debug,
         O: for <'de> serde::Deserialize<'de>,
     {
+        if self.debug {
+            println!("Performing {:?} request to endpoint {}", verb, suffix);
+            println!("Request payload: {:?}", payload);
+        }
         let response = self.build_request_base(suffix, verb)?.json(&payload).send()?;
         let result = self.unpack_response(response)?;
         Ok(result)

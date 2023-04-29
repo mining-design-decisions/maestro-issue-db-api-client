@@ -47,26 +47,27 @@ impl Query {
                 Value::Object(map)
             }
             Query::And(branches) => {
-                let mut json_branches: Vec<Value> = Vec::with_capacity(branches.len());
-                for branch in branches {
-                    json_branches.push(branch.into_json());
-                }
                 let mut map = Map::new();
-                map.insert("$and".to_string(), Value::Array(json_branches));
+                map.insert("$and".to_string(), serialize_logical_op_branches(branches));
                 Value::Object(map)
             }
             Query::Or(branches) => {
-                let mut json_branches: Vec<Value> = Vec::with_capacity(branches.len());
-                for branch in branches {
-                    json_branches.push(branch.into_json());
-                }
                 let mut map = Map::new();
-                map.insert("$or".to_string(), Value::Array(json_branches));
+                map.insert("$or".to_string(), serialize_logical_op_branches(branches));
                 Value::Object(map)
             }
         }
     }
 }
+
+fn serialize_logical_op_branches(arms: Vec<Query>) -> Value {
+    let mut json_branches: Vec<Value> = Vec::with_capacity(arms.len());
+    for branch in arms {
+        json_branches.push(branch.into_json());
+    }
+    Value::Array(json_branches)
+}
+
 
 impl Display for Query {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -78,32 +79,31 @@ impl Display for Query {
             Query::Project(project) => write!(f, "{{\"tags\": {{\"$eq\": \"{}\"}}}}", project),
             Query::Identifier(ident) => write!(f, "{{\"_id\": {{\"$eq\": \"{}\"}}}}", ident),
             Query::Key(key) => write!(f, "{{\"key\": {{\"$eq\": \"{}\"}}}}", key),
-            Query::And(arms) => {
+            Query::And(arms)=> {
                 write!(f, "{{\"$and\": [")?;
-                let mut first = true;
-                for a in arms {
-                    if !first {
-                        write!(f, ", {}", a)?;
-                    } else {
-                        write!(f, "{}", a)?;
-                        first = false;
-                    }
-                }
+                write_logical_op_body(f, arms)?;
+                write!(f, "]")?;
                 Ok(())
             },
             Query::Or(arms) => {
                 write!(f, "{{\"$or\": [")?;
-                let mut first = true;
-                for a in arms {
-                    if !first {
-                        write!(f, ", {}", a)?;
-                    } else {
-                        write!(f, "{}", a)?;
-                        first = false;
-                    }
-                }
+                write_logical_op_body(f, arms)?;
+                write!(f, "]")?;
                 Ok(())
             }
         }
     }
+}
+
+fn write_logical_op_body(f: &mut Formatter<'_>, arms: &Vec<Query>) -> std::fmt::Result {
+    let mut first = true;
+    for a in arms {
+        if !first {
+            write!(f, ", {}", a)?;
+        } else {
+            write!(f, "{}", a)?;
+            first = false;
+        }
+    }
+    Ok(())
 }
