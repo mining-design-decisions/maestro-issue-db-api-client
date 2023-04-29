@@ -56,6 +56,9 @@ impl IssueRepository {
                   query: Query,
                   issue_loading_settings: IssueLoadingSettings) -> APIResult<Vec<Issue>> {
         let ids = self.api.search(query)?;
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
         issue_loading_settings.load_issues(self.api.clone(),
                                            ids,
                                            self.label_caching)
