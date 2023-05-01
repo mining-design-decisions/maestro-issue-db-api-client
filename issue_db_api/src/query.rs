@@ -9,7 +9,8 @@ pub enum Query {
     Identifier(String),
     Key(String),
     And(Vec<Query>),
-    Or(Vec<Query>)
+    Or(Vec<Query>),
+    Exists(String, bool)
 }
 
 
@@ -56,6 +57,13 @@ impl Query {
                 map.insert("$or".to_string(), serialize_logical_op_branches(branches));
                 Value::Object(map)
             }
+            Query::Exists(field, state) => {
+                let mut map = Map::new();
+                let mut inner_map = Map::new();
+                inner_map.insert("$exists".to_string(), Value::Bool(state));
+                map.insert(field, Value::Object(inner_map));
+                Value::Object(map)
+            }
         }
     }
 }
@@ -82,14 +90,17 @@ impl Display for Query {
             Query::And(arms)=> {
                 write!(f, "{{\"$and\": [")?;
                 write_logical_op_body(f, arms)?;
-                write!(f, "]")?;
+                write!(f, "]}}")?;
                 Ok(())
             },
             Query::Or(arms) => {
                 write!(f, "{{\"$or\": [")?;
                 write_logical_op_body(f, arms)?;
-                write!(f, "]")?;
+                write!(f, "]}}")?;
                 Ok(())
+            },
+            Query::Exists(value, state) => {
+                write!(f, "\"{}\": {{\"$exists\": {}}}}}", value, state)
             }
         }
     }

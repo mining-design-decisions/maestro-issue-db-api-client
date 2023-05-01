@@ -365,6 +365,17 @@ mod python {
             }
             Ok(Query::Tag(cmp, name))
         }
+        
+        fn add_exists(&self, name: String, state: bool) -> PyResult<Query> {
+            if self.query.is_some() {
+                return Err(
+                    IssueAPIError::new_err(
+                        "issues_api.Query.tag cannot be called on a tag-query."
+                    )
+                )
+            }
+            Ok(Query::Exists(name, state))
+        }
 
         fn get_query(&self) -> PyResult<Query> {
             match self.query {
@@ -408,6 +419,18 @@ mod python {
 
         fn not_tag(&self, name: String) -> PyResult<Self> {
             Ok(Self{query: Some(self.add_tag(name, QueryCMP::Ne)?)})
+        }
+        
+        fn exists(&self, field: String) -> PyResult<Self> {
+            Ok(
+                Self{query: Some(self.add_exists(field, true)?)}
+            )
+        }
+        
+        fn not_exists(&self, field: String) -> PyResult<Self> {
+            Ok(
+                Self{query: Some(self.add_exists(field, false)?)}
+            )
         }
 
         fn to_json(&self, py: Python<'_>) -> PyResult<PyObject> {

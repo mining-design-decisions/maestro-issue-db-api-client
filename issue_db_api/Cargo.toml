@@ -1,6 +1,6 @@
 [package]
 name = "issue-api-client"
-version = "0.6.2"
+version = "0.6.3"
 edition = "2021"
 
 [lib]
@@ -18,3 +18,4 @@ lazy_static = "1.4.0"
 lazy-init = "0.5.1"
 reqwest = { version = "0.11.16", features = ["json", "multipart"] }
 pyo3 = { version = "0.18.2", optional = true, features = ["extension-module"]}
+tokio = { version = "1.28.0", features = ["rt"]}

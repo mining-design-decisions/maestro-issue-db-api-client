@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Write;
 
 #[cfg(feature = "blocking")]
 use reqwest::blocking::Client;
@@ -403,12 +404,21 @@ impl IssueAPI {
         where
             I: serde::Serialize,
     {
-        let response = self.build_request_base(suffix, verb)?.json(&payload).send()?;
-        let data = self.handle_error_status(response)?.bytes()?;
-        let mut cursor = std::io::Cursor::new(data);
+        let url = self.get_endpoint(suffix);
+        let client = reqwest::Client::new();
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
         let mut file = std::fs::File::create(target_path)?;
-        std::io::copy(&mut cursor, &mut file)?;
-        Ok(())
+        let result: APIResult<()> = rt.block_on(async {
+            let mut stream = client
+                .get(url)
+                .send()
+                .await?;
+            while let Some(chunk) = stream.chunk().await? {
+                file.write_all(chunk.as_ref())?;
+            }
+            Ok(())
+        });
+        result
     }
 
     /***************************************************************************
