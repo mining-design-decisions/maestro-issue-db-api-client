@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::Write;
+use std::io::Cursor;
 
 #[cfg(feature = "blocking")]
 use reqwest::blocking::Client;
@@ -396,6 +396,22 @@ impl IssueAPI {
         Ok(result)
     }
 
+    fn call_endpoint_multipart_object<I, O>(&self,
+                                            suffix: &str,
+                                            verb: Verb,
+                                            payload: &I) -> APIResult<O>
+        where
+            I: serde::Serialize + ?Sized,
+            O: for <'de> serde::Deserialize<'de>,
+    {
+        let mut buffer = Cursor::new(Vec::new());
+        serde_json::to_writer(&mut buffer, payload)?;
+        buffer.set_position(0);
+        let form = multipart::Form::new()
+            .part("payload", multipart::Part::reader(buffer));
+        self.call_endpoint_multipart(suffix, verb, form)
+    }
+
     fn call_endpoint_download<I>(&self,
                                  suffix: &str,
                                  verb: Verb,
@@ -404,17 +420,44 @@ impl IssueAPI {
         where
             I: serde::Serialize,
     {
+        let mut file = std::fs::File::create(target_path)?;
+        self.call_endpoint_download_into(suffix, verb, payload, &mut file)
+    }
+
+    fn call_endpoint_download_object<I, O>(&self,
+                                           suffix: &str,
+                                           verb: Verb,
+                                           payload: I) -> APIResult<O>
+        where
+            I: serde::Serialize,
+            O: for <'de> serde::Deserialize<'de>
+    {
+        let mut buffer = std::io::Cursor::new(Vec::new());
+        self.call_endpoint_download_into(suffix, verb, payload, &mut buffer)?;
+        buffer.set_position(0);
+        let result: O = serde_json::from_reader(buffer)?;
+        Ok(result)
+    }
+
+    fn call_endpoint_download_into<I, S>(&self,
+                                         suffix: &str,
+                                         verb: Verb,
+                                         payload: I,
+                                         sink: &mut S) -> APIResult<()>
+        where
+            I: serde::Serialize,
+            S: std::io::Write
+    {
         let url = self.get_endpoint(suffix);
         let client = reqwest::Client::new();
         let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
-        let mut file = std::fs::File::create(target_path)?;
         let result: APIResult<()> = rt.block_on(async {
             let mut stream = client
                 .get(url)
                 .send()
                 .await?;
             while let Some(chunk) = stream.chunk().await? {
-                file.write_all(chunk.as_ref())?;
+                sink.write_all(chunk.as_ref())?;
             }
             Ok(())
         });
@@ -995,7 +1038,10 @@ impl IssueAPI {
         struct PredictionsResponse {
             predictions: HashMap<String, Value>
         }
-        let result = self.call_endpoint_json::<_, PredictionsResponse>(
+        //let result = self.call_endpoint_json::<_, PredictionsResponse>(
+        //    endpoint.as_str(), Verb::Get, Value::Object(map)
+        //)?;
+        let result = self.call_endpoint_download_object::<_, PredictionsResponse>(
             endpoint.as_str(), Verb::Get, Value::Object(map)
         )?;
         Ok(result.predictions)
@@ -1009,7 +1055,10 @@ impl IssueAPI {
         let mut map = Map::new();
         map.insert("predictions".to_string(),
                    Value::Object(Map::from_iter(predictions.into_iter())));
-        self.call_endpoint_json(endpoint.as_str(), Verb::Post, Value::Object(map))
+        //self.call_endpoint_json(endpoint.as_str(), Verb::Post, Value::Object(map))
+        self.call_endpoint_multipart_object(
+            endpoint.as_str(), Verb::Post, &Value::Object(map)
+        )
     }
 
     pub(crate) fn delete_predictions(&self,
@@ -1059,8 +1108,11 @@ impl IssueAPI {
         let mut map = Map::new();
         map.insert("performance".to_string(), Value::Array(data));
         let endpoint = format!("models/{}/performances", model_id);
-        let result = self.call_endpoint_json::<_, NewPerformanceResponse>(
-            endpoint.as_str(), Verb::Post, Value::Object(map)
+        // let result = self.call_endpoint_json::<_, NewPerformanceResponse>(
+        //     endpoint.as_str(), Verb::Post, Value::Object(map)
+        // )?;
+        let result = self.call_endpoint_multipart_object::<_, NewPerformanceResponse>(
+            endpoint.as_str(), Verb::Post, &Value::Object(map)
         )?;
         Ok(result.performance_id)
     }
@@ -1075,7 +1127,10 @@ impl IssueAPI {
             performance: Vec<Value>
         }
         let endpoint = format!("models/{}/performances/{}", model_id, performance_id);
-        let result = self.call_endpoint_json::<_, PerformanceDataResponse>(
+        // let result = self.call_endpoint_json::<_, PerformanceDataResponse>(
+        //     endpoint.as_str(), Verb::Get, Value::Object(Map::new())
+        // )?;
+        let result = self.call_endpoint_download_object::<_, PerformanceDataResponse>(
             endpoint.as_str(), Verb::Get, Value::Object(Map::new())
         )?;
         Ok(result.performance)
