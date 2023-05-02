@@ -105,14 +105,14 @@ mod python {
                 }
                 Some(f) => Ok(Value::Number(f))
             }
+        } else if obj.is_instance_of::<PyBool>()? {     // Must be before int because issubclass(bool, int)
+            Ok(Value::Bool(obj.extract::<bool>()?))
         } else if obj.is_instance_of::<PyInt>()? {
             Ok(Value::Number(Number::from(obj.extract::<i64>()?)))
         } else if obj.is_instance_of::<PyLong>()? {
             Ok(Value::Number(Number::from(obj.extract::<i64>()?)))
         } else if obj.is_instance_of::<PyString>()? {
             Ok(Value::String(obj.extract::<String>()?))
-        } else if obj.is_instance_of::<PyBool>()? {
-            Ok(Value::Bool(obj.extract::<bool>()?))
         } else if obj.is_none() {
            Ok(Value::Null)
         } else {
