@@ -407,8 +407,10 @@ impl IssueAPI {
         let mut buffer = Cursor::new(Vec::new());
         serde_json::to_writer(&mut buffer, payload)?;
         buffer.set_position(0);
-        let form = multipart::Form::new()
-            .part("file", multipart::Part::reader(buffer));
+        let part = multipart::Part::reader(buffer)
+            .mime_str("application/json")?
+            .file_name("file.json");
+        let form = multipart::Form::new().part("file", part);
         self.call_endpoint_multipart(suffix, verb, form)
     }
 
