@@ -408,7 +408,7 @@ impl IssueAPI {
         serde_json::to_writer(&mut buffer, payload)?;
         buffer.set_position(0);
         let form = multipart::Form::new()
-            .part("payload", multipart::Part::reader(buffer));
+            .part("file", multipart::Part::reader(buffer));
         self.call_endpoint_multipart(suffix, verb, form)
     }
 
@@ -1105,14 +1105,14 @@ impl IssueAPI {
         struct NewPerformanceResponse {
             performance_id: String
         }
-        let mut map = Map::new();
-        map.insert("performance".to_string(), Value::Array(data));
+        //let mut map = Map::new();
+        //map.insert("performance".to_string(), Value::Array(data));
         let endpoint = format!("models/{}/performances", model_id);
         // let result = self.call_endpoint_json::<_, NewPerformanceResponse>(
         //     endpoint.as_str(), Verb::Post, Value::Object(map)
         // )?;
         let result = self.call_endpoint_multipart_object::<_, NewPerformanceResponse>(
-            endpoint.as_str(), Verb::Post, &Value::Object(map)
+            endpoint.as_str(), Verb::Post, &data
         )?;
         Ok(result.performance_id)
     }
