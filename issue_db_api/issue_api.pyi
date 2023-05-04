@@ -1,6 +1,25 @@
 import typing
 
 
+class IssueAPIError(Exception):
+    ...
+
+class InvalidCredentialsException(IssueAPIError):
+    ...
+
+class NotAuthorizedException(IssueAPIError):
+    ...
+
+class InvalidTokenException(IssueAPIError):
+    ...
+
+class HTTPException(IssueAPIError):
+    ...
+
+class LibraryException(IssueAPIError):
+    ...
+
+
 class IssueRepository:
     def __init__(self,
                  url: str, *,

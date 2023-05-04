@@ -13,7 +13,7 @@ mod errors;
 mod models;
 
 pub use repository::IssueRepository;
-pub use util::APIResult;
+pub use errors::APIResult;
 pub use query::{Query, QueryCMP};
 
 
@@ -30,23 +30,40 @@ mod python {
     use crate::comments::Comment;
     use crate::config::{CachingPolicy, ConfigHandlingPolicy, IssueAttribute, IssueLoadingSettings};
     use crate::embedding::Embedding;
+    use crate::errors::APIError;
     use crate::issues::Issue;
     use crate::labels::Label;
     use crate::models::{Model, ModelVersion, TestRun};
     use crate::repository::IssueRepo;
     use crate::tags::{Tag, TagType};
-    use crate::util::APIResult;
+    use crate::errors::APIResult;
     use super::*;
 
     create_exception!(issue_api, IssueAPIError, PyException);
+    create_exception!(issue_api, InvalidCredentialsException, IssueAPIError);
+    create_exception!(issue_api, NotAuthorizedException, IssueAPIError);
+    create_exception!(issue_api, InvalidTokenException, IssueAPIError);
+    create_exception!(issue_api, HTTPException, IssueAPIError);
+    create_exception!(issue_api, LibraryException, IssueAPIError);
 
     #[inline(always)]
     fn api2py_error<T>(e: APIResult<T>) -> PyResult<T> {
         match e {
-            Ok(e) => Ok(e),
-            Err(e) => Err(
-                IssueAPIError::new_err(e.to_string())
-            )
+            Ok(obj) => Ok(obj),
+            Err(inner) => Err({
+                match inner {
+                    APIError::InvalidCredentials => InvalidCredentialsException::new_err(inner.to_string()),
+                    APIError::InvalidToken => InvalidTokenException::new_err(inner.to_string()),
+                    APIError::NotAuthorized => NotAuthorizedException::new_err(inner.to_string()),
+                    APIError::HTTPError{message, status_code} => {
+                        let o = (message, status_code);
+                        HTTPException::new_err(o)
+                    },
+                    APIError::IDParsingError(_) => IssueAPIError::new_err(inner.to_string()),
+                    APIError::LibraryError(_) => LibraryException::new_err(inner.to_string()),
+                    APIError::GenericError(_) => IssueAPIError::new_err(inner.to_string())
+                }
+            })
         }
     }
 
@@ -1111,6 +1128,11 @@ mod python {
     #[pymodule]
     fn issue_api(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         m.add("IssueAPIError", py.get_type::<IssueAPIError>())?;
+        m.add("InvalidCredentialsException", py.get_type::<InvalidCredentialsException>())?;
+        m.add("NotAuthorizedException", py.get_type::<NotAuthorizedException>())?;
+        m.add("InvalidTokenException", py.get_type::<InvalidTokenException>())?;
+        m.add("HTTPException", py.get_type::<HTTPException>())?;
+        m.add("LibraryException", py.get_type::<LibraryException>())?;
         m.add_class::<PyIssueRepository>()?;
         m.add_class::<PyIssue>()?;
         m.add_class::<PyQuery>()?;

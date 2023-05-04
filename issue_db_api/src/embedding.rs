@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use serde_json::Value;
 use crate::api_core::IssueAPI;
-use crate::APIResult;
+use crate::errors::APIResult;
 use crate::config::ConfigHandlingPolicy;
 
 #[allow(unused)]

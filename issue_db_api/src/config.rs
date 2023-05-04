@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
 use crate::api_core::IssueAPI;
-use crate::{APIResult, Query, QueryCMP};
-use crate::errors::APIError;
+use crate::{Query, QueryCMP};
+use crate::errors::{APIError, APIResult};
 use crate::issues::Issue;
 
 #[allow(unused)]
@@ -65,7 +65,7 @@ impl std::fmt::Display for IssueAttribute {
 }
 
 impl TryFrom<String> for IssueAttribute {
-    type Error = Box<dyn Error>;
+    type Error = APIError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let attr = match value.as_str() {
@@ -91,7 +91,7 @@ impl TryFrom<String> for IssueAttribute {
             "fix_versions" => IssueAttribute::FixVersions,
             _ => {
                 let msg = format!("\"{}\" is an invalid issue attribute", value);
-                return Err(Box::new(APIError::new(msg)));
+                return Err(APIError::GenericError(msg));
             }
         };
         Ok(attr)

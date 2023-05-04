@@ -9,7 +9,7 @@ use crate::issues::Issue;
 use crate::models::Model;
 use crate::query::Query;
 use crate::tags::Tag;
-use crate::util::APIResult;
+use crate::errors::APIResult;
 
 
 #[allow(unused)]

@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use serde_json::Value;
 use crate::api_core::IssueAPI;
-use crate::APIResult;
+use crate::errors::APIResult;
 use crate::config::ConfigHandlingPolicy;
 use crate::errors::APIError;
 use crate::util::CacheContainer;
@@ -215,7 +215,7 @@ impl Model {
         match version {
             None => {
                 let text = format!("Could not find version with ID {id}");
-                Err(Box::new(APIError::new(text)))
+                Err(APIError::GenericError(text))
             },
             Some(v) => Ok(v)
         }
@@ -260,7 +260,7 @@ impl Model {
         match run {
             None => {
                 let text = format!("Could not find test run with ID {id}");
-                Err(Box::new(APIError::new(text)))
+                Err(APIError::GenericError(text))
             },
             Some(v) => Ok(v)
         }

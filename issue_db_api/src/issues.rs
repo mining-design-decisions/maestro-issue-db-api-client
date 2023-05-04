@@ -1,11 +1,12 @@
 use std::hash::{Hash, Hasher};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use crate::api_core::{IssueAPI, IssueData};
 use crate::comments::Comment;
 use crate::config::{CachingPolicy, IssueLoadingSettings};
+use crate::errors::APIResult;
 use crate::labels::Label;
-use crate::util::APIResult;
+use crate::util::CacheContainer;
 
 #[allow(unused)]
 #[derive(Debug)]
@@ -14,7 +15,7 @@ pub struct Issue {
     ident: String,
     data: IssueData,
     caching_policy: CachingPolicy,
-    label: RwLock<Option<Label>>,
+    label: CacheContainer<Option<Label>>,
     dirty: AtomicBool
 }
 
@@ -42,7 +43,7 @@ impl Issue {
          Self{
              api, ident, data,
              caching_policy: caching,
-             label: RwLock::new(label),
+             label: CacheContainer::new(Some(label)),
              dirty: AtomicBool::new(false)
         }
     }
@@ -53,43 +54,7 @@ impl Issue {
     }
 
     pub fn get_manual_label(&self) -> APIResult<Option<Label>> {
-        match self.caching_policy {
-            CachingPolicy::NoCaching => {
-                self.load_label()
-            }
-            CachingPolicy::UseLocalAfterLoad => {
-                let label = self.label
-                    .read()
-                    .expect("RwLock has been poisoned. Cannot recover");
-                if label.is_some() && !self.dirty.load(Ordering::Acquire) {
-                    Ok(Some(label.unwrap()))
-                } else {
-                    // First, acquire the write lock
-                    std::mem::drop(label);
-                    let mut label = self.label
-                        .write()
-                        .expect("RwLock has been poisoned. Cannot recover");
-                    // With the write lock in hand, check if another thread
-                    // updated the label in the meantime.
-                    if self.dirty.load(Ordering::Relaxed) && label.is_none() {
-                        // The label is definitely dirty; update it
-                        if let Some(inner) = self.load_label()? {
-                            label.insert(inner);
-                            self.dirty.store(false, Ordering::Release);
-                            Ok(Some(inner))
-                        } else {
-                            label.take();
-                            self.dirty.store(false, Ordering::Release);
-                            Ok(None)
-                        }
-                    } else {
-                        // Another thread updated the label; use a recursive
-                        // call to fetch the label.
-                        self.get_manual_label()
-                    }
-                }
-            }
-        }
+        self.label.get(|| self.load_label())
     }
 
     fn load_label(&self) -> APIResult<Option<Label>> {
@@ -100,18 +65,7 @@ impl Issue {
     }
 
     pub fn set_manual_label(&self, label: Label) -> APIResult<()> {
-        self.api.update_manual_label_for_issue(self.ident.clone(), label)?;
-        if self.caching_policy == CachingPolicy::UseLocalAfterLoad {
-            let mut label = self.label
-                .write()
-                .expect("RwLock has been poisoned. Cannot recover");
-            if let Some(inner) = self.load_label()? {
-                label.insert(inner);
-            } else {
-                label.take();
-            }
-        }
-        Ok(())
+        self.label.set(Some(label))
     }
 
     pub fn invalidate_cached_label(&self) {

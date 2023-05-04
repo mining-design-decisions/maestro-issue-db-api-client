@@ -16,7 +16,7 @@ use crate::query::Query;
 use crate::labels::Label;
 use crate::tags::UnboundTag;
 use crate::util::initialize_lazy_field;
-use crate::util::APIResult;
+use crate::errors::APIResult;
 use crate::errors::*;
 use crate::models::{ModelInfo, UnboundModelConfig, UnboundModelVersion, UnboundTestRun};
 
@@ -34,7 +34,6 @@ pub struct IssueAPI {
     url: String,
     token: Option<String>,
     client: Client,
-    debug: bool
 }
 
 #[allow(unused)]
@@ -276,18 +275,7 @@ impl IssueAPI {
         let client = ClientBuilder::new()
             .danger_accept_invalid_certs(allow_self_signed)
             .build()?;
-        println!("Debug state: {}", Self::get_debug_state()?);
-        Ok(IssueAPI{url, token: None, client, debug: Self::get_debug_state()?})
-    }
-
-    fn get_debug_state() -> APIResult<bool> {
-        match std::env::var("ISSUE_API_CLIENT_DEBUG") {
-            Ok(value) => {
-                let converted = value.to_lowercase();
-                Ok(converted == "true" || converted == "1")
-            }
-            Err(_) => Ok(false)
-        }
+        Ok(IssueAPI{url, token: None, client})
     }
 
     fn login(&mut self, username: String, password: String) -> APIResult<()> {
@@ -321,7 +309,7 @@ impl IssueAPI {
 
     fn get_auth(&self) -> APIResult<String> {
         if self.token.is_none() {
-            Err(Box::try_from(AuthenticationError {}).unwrap())
+            Err(APIError::NotAuthorized)
         } else {
             Ok(self.token.clone().unwrap())
         }
@@ -362,11 +350,9 @@ impl IssueAPI {
         I: serde::Serialize + std::fmt::Debug,
         O: for <'de> serde::Deserialize<'de>,
     {
-        if self.debug {
-            println!("Performing {:?} request to endpoint {}", verb, suffix);
-            println!("Request payload: {:?}", payload);
-        }
-        let response = self.build_request_base(suffix, verb)?.json(&payload).send()?;
+        let response = self.build_request_base(suffix, verb)?
+            .json(&payload)
+            .send()?;
         let result = self.unpack_response(response)?;
         Ok(result)
     }
@@ -379,7 +365,9 @@ impl IssueAPI {
             I: serde::Serialize + ?Sized,
             O: for <'de> serde::Deserialize<'de>,
     {
-        let response = self.build_request_base(suffix, verb)?.form(payload).send()?;
+        let response = self.build_request_base(suffix, verb)?
+            .form(payload)
+            .send()?;
         let result = self.unpack_response(response)?;
         Ok(result)
     }
@@ -391,7 +379,9 @@ impl IssueAPI {
         where
             O: for <'de> serde::Deserialize<'de>,
     {
-        let response = self.build_request_base(suffix, verb)?.multipart(payload).send()?;
+        let response = self.build_request_base(suffix, verb)?
+            .multipart(payload)
+            .send()?;
         let result = self.unpack_response(response)?;
         Ok(result)
     }
@@ -457,7 +447,8 @@ impl IssueAPI {
             let mut stream = client
                 .get(url)
                 .send()
-                .await?;
+                .await?
+                .error_for_status()?;
             while let Some(chunk) = stream.chunk().await? {
                 sink.write_all(chunk.as_ref())?;
             }
@@ -522,7 +513,7 @@ impl IssueAPI {
             match result.issue_ids.get(&key) {
                 None => {
                     let msg = format!("No ID found for key \"{}\"", key);
-                    return Err(Box::new(APIError::new(msg)));
+                    return Err(APIError::GenericError(msg));
                 },
                 Some(id) => ids.push(id.clone())
             }
@@ -708,7 +699,7 @@ impl IssueAPI {
             //     .parse::<u128>()
             //     .map_err(|e| IDParsingError{msg: e.to_string()})?;
             let id = u128::from_str_radix(c.id.as_str(), 16)
-                .map_err(|e| IDParsingError{msg: e.to_string()})?;
+                .map_err(|e| APIError::IDParsingError(e.to_string()))?;
             object_ids.push(id);
         }
         // Sort comments

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use crate::api_core::IssueAPI;
-use crate::APIResult;
+use crate::errors::APIResult;
 
 #[allow(unused)]
 #[derive(Debug)]

@@ -1,7 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{RwLock};
-
-pub type APIResult<T> = Result<T, Box<dyn std::error::Error>>;
+use std::sync::RwLock;
+use crate::errors::{APIResult};
 
 
 macro_rules! initialize_lazy_field {
@@ -21,9 +20,10 @@ macro_rules! initialize_lazy_field {
 pub(crate) use initialize_lazy_field;
 
 
+
 #[allow(unused)]
 #[derive(Debug)]
-struct CacheLockError {}
+pub struct CacheLockError {}
 
 impl std::fmt::Display for CacheLockError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -56,7 +56,7 @@ impl<T: Clone> CacheContainer<T> {
     pub fn get<F: FnOnce() -> APIResult<T>>(&self, f: F) -> APIResult<T> {
         let obj = self.value
             .read()
-            .map_err(|_| Box::new(CacheLockError{}))?;
+            .map_err(|_| CacheLockError{})?;
         if obj.is_some() && !self.dirty.load(Ordering::Acquire) {
             Ok(obj.clone().unwrap())
         } else {
@@ -64,7 +64,7 @@ impl<T: Clone> CacheContainer<T> {
             // First, acquire the write lock
             let mut obj = self.value
                 .write()
-                .map_err(|_| Box::new(CacheLockError{}))?;
+                .map_err(|_| CacheLockError{})?;
             // With the write lock in hand, check if another thread
             // updated the object in the meantime.
             if self.dirty.load(Ordering::Relaxed) && obj.is_none() {
@@ -82,7 +82,7 @@ impl<T: Clone> CacheContainer<T> {
     pub fn set(&self, value: T) -> APIResult<()> {
         let mut obj = self.value
             .write()
-            .map_err(|_| Box::new(CacheLockError{}))?;
+            .map_err(|_| CacheLockError{})?;
         let _ = obj.insert(value);
         Ok(())
     }
