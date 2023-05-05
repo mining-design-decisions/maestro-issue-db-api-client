@@ -67,11 +67,14 @@ impl<T: Clone> CacheContainer<T> {
                 .map_err(|_| CacheLockError{})?;
             // With the write lock in hand, check if another thread
             // updated the object in the meantime.
-            if self.dirty.load(Ordering::Relaxed) && obj.is_none() {
+            if self.dirty.load(Ordering::Relaxed) || obj.is_none() {
                 let inner = (f)()?;
                 let _ = obj.insert(inner.clone());
+                self.dirty.store(false, Ordering::Release);
                 Ok(inner)
             } else {
+                // unlock
+                drop(obj);
                 // Another thread updated the object; use a recursive
                 // call to fetch it.
                 self.get(f)
