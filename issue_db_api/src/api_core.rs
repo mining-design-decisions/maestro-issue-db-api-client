@@ -446,6 +446,7 @@ impl IssueAPI {
         let result: APIResult<()> = rt.block_on(async {
             let mut stream = client
                 .get(url)
+                .json(&payload)
                 .send()
                 .await?
                 .error_for_status()?;
