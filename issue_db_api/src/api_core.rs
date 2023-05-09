@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use std::io::Cursor;
 
 #[cfg(feature = "blocking")]
-use reqwest::blocking::Client;
-use reqwest::blocking::{ClientBuilder, multipart};
+use reqwest::blocking::multipart;
 
 use serde_json::{Map, Value};
 use lazy_init::Lazy;
@@ -33,7 +32,8 @@ use crate::models::{ModelInfo, UnboundModelConfig, UnboundModelVersion, UnboundT
 pub struct IssueAPI {
     url: String,
     token: Option<String>,
-    client: Client,
+    allow_unsafe_ssl: bool,
+    client: reqwest::blocking::Client,
 }
 
 #[allow(unused)]
@@ -272,10 +272,17 @@ impl IssueAPI {
     }
 
     pub(crate) fn new_read_only(url: String, allow_self_signed: bool) -> APIResult<Self> {
-        let client = ClientBuilder::new()
+        let client = reqwest::blocking::ClientBuilder::new()
             .danger_accept_invalid_certs(allow_self_signed)
             .build()?;
-        Ok(IssueAPI{url, token: None, client})
+        Ok(
+            IssueAPI{
+                url,
+                token: None,
+                client,
+                allow_unsafe_ssl: allow_self_signed
+            }
+        )
     }
 
     fn login(&mut self, username: String, password: String) -> APIResult<()> {
@@ -441,7 +448,9 @@ impl IssueAPI {
             S: std::io::Write
     {
         let url = self.get_endpoint(suffix);
-        let client = reqwest::Client::new();
+        let client = reqwest::ClientBuilder::new()
+            .danger_accept_invalid_certs(self.allow_unsafe_ssl)
+            .build()?;
         let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
         let result: APIResult<()> = rt.block_on(async {
             let mut stream = client
