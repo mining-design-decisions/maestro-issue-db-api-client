@@ -137,7 +137,7 @@ impl IssueLoadingSettings {
                 id.clone(),
                 data.get(&id).unwrap().clone(),
                 label_caching_policy,
-                labels.get(&id).cloned()))
+                if self.preload_labels { Some(labels.get(&id).cloned()) } else { None }))
             .collect();
         Ok(issues)
     }

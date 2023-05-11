@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::RwLock;
 use crate::errors::{APIResult};
@@ -45,7 +46,7 @@ pub struct CacheContainer<T: Clone> {
 }
 
 
-impl<T: Clone> CacheContainer<T> {
+impl<T: Clone + Debug> CacheContainer<T> {
     pub fn new(initial: Option<T>) -> Self {
         let dirty = initial.is_none();
         CacheContainer{

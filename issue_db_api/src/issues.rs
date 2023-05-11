@@ -39,12 +39,12 @@ impl Issue {
                       ident: String,
                       data: IssueData,
                       caching: CachingPolicy,
-                      label: Option<Label>) -> Self {
-         Self{
-             api, ident, data,
-             caching_policy: caching,
-             label: CacheContainer::new(Some(label)),
-             dirty: AtomicBool::new(false)
+                      label: Option<Option<Label>>) -> Self {
+        Self{
+            api, ident, data,
+            caching_policy: caching,
+            label: CacheContainer::new(label),
+            dirty: AtomicBool::new(false)
         }
     }
 
