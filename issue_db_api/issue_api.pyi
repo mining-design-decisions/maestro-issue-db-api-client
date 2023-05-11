@@ -29,6 +29,15 @@ class IssueRepository:
                  allow_self_signed_certificates: bool = False):
         ...
 
+    @classmethod
+    def from_token(cls,
+                   url: str, *,
+                   token: str,
+                   label_caching_policy: str = 'no_caching',
+                   config_handling_policy: str = 'read_fetch_write_fetch',
+                   allow_self_signed_certificates: bool = False):
+        ...
+
     def __repr__(self) -> str:
         ...
 

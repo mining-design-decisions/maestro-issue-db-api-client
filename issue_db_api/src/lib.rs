@@ -25,7 +25,7 @@ mod python {
     use pyo3::prelude::*;
     use pyo3::create_exception;
     use pyo3::exceptions::{PyException, PyTypeError, PyValueError};
-    use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyInt, PyList, PyLong, PyString, PyTuple};
+    use pyo3::types::{IntoPyDict, PyBool, PyDict, PyFloat, PyInt, PyList, PyLong, PyString, PyTuple, PyType};
     use serde_json::{Map, Number, Value};
     use crate::comments::Comment;
     use crate::config::{CachingPolicy, ConfigHandlingPolicy, IssueAttribute, IssueLoadingSettings};
@@ -154,6 +154,29 @@ mod python {
         repo: IssueRepository
     }
 
+    fn parse_caching_handling(label_caching_policy: &str) -> PyResult<CachingPolicy> {
+        match label_caching_policy {
+            "no_caching" => Ok(CachingPolicy::NoCaching),
+            "use_local_after_load" => Ok(CachingPolicy::UseLocalAfterLoad),
+            _ => {
+                let text = format!("Invalid caching policy: {}", label_caching_policy);
+                Err(IssueAPIError::new_err(text))
+            }
+        }
+    }
+
+    fn parse_config_policy(config_handling_policy: &str) -> PyResult<ConfigHandlingPolicy> {
+        match config_handling_policy {
+            "read_fetch_write_fetch" => Ok(ConfigHandlingPolicy::ReadFetchWriteWithFetch),
+            "read_local_write_fetch" => Ok(ConfigHandlingPolicy::ReadLocalWriteWithFetch),
+            "read_local_write_local" => Ok(ConfigHandlingPolicy::ReadLocalWriteNoFetch),
+            _ => {
+                let text = format!("Invalid config handling policy: {}", config_handling_policy);
+                Err(IssueAPIError::new_err(text))
+            }
+        }
+    }
+
     #[pymethods]
     impl PyIssueRepository {
         #[new]
@@ -169,23 +192,8 @@ mod python {
                    label_caching_policy: &str,
                    config_handling_policy: &str,
                    allow_self_signed_certificates: bool) -> PyResult<Self> {
-            let caching = match label_caching_policy {
-                "no_caching" => CachingPolicy::NoCaching,
-                "use_local_after_load" => CachingPolicy::UseLocalAfterLoad,
-                _ => {
-                    let text = format!("Invalid caching policy: {}", label_caching_policy);
-                    return Err(IssueAPIError::new_err(text));
-                }
-            };
-            let config_handling = match config_handling_policy {
-                "read_fetch_write_fetch" => ConfigHandlingPolicy::ReadFetchWriteWithFetch,
-                "read_local_write_fetch" => ConfigHandlingPolicy::ReadLocalWriteWithFetch,
-                "read_local_write_local" => ConfigHandlingPolicy::ReadLocalWriteNoFetch,
-                _ => {
-                    let text = format!("Invalid config handling policy: {}", config_handling_policy);
-                    return Err(IssueAPIError::new_err(text));
-                }
-            };
+            let caching = parse_caching_handling(label_caching_policy)?;
+            let config_handling = parse_config_policy(config_handling_policy)?;
             let (repo, auth) = if let Some((username, password)) = credentials {
                 (
                     IssueRepository::new(url.clone(),
@@ -206,6 +214,32 @@ mod python {
                 )
             };
             Ok(Self{url, authenticated: auth, repo: api2py_error(repo)?})
+        }
+
+        #[classmethod]
+        #[pyo3(signature=(
+            url, *,
+            token,
+            label_caching_policy="no_caching",
+            config_handling_policy="read_fetch_write_fetch",
+            allow_self_signed_certificates=false
+            ))]
+        fn from_token(_cls: &PyType,
+                      url: String,
+                      token: String,
+                      label_caching_policy: &str,
+                      config_handling_policy: &str,
+                      allow_self_signed_certificates: bool) -> PyResult<Self> {
+            let caching = parse_caching_handling(label_caching_policy)?;
+            let config_handling = parse_config_policy(config_handling_policy)?;
+            let repo = IssueRepository::new_with_token(
+                url.clone(),
+                token,
+                caching,
+                config_handling,
+                allow_self_signed_certificates
+            );
+            Ok(PyIssueRepository{url, authenticated: true, repo: api2py_error(repo)?})
         }
 
         fn __repr__(&self) -> PyResult<String> {

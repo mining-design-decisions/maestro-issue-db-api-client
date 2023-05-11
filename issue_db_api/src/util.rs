@@ -47,9 +47,10 @@ pub struct CacheContainer<T: Clone> {
 
 impl<T: Clone> CacheContainer<T> {
     pub fn new(initial: Option<T>) -> Self {
+        let dirty = initial.is_none();
         CacheContainer{
             value: RwLock::new(initial),
-            dirty: AtomicBool::new(true)
+            dirty: AtomicBool::new(dirty)
         }
     }
 

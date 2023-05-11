@@ -284,6 +284,12 @@ impl IssueAPI {
             }
         )
     }
+    
+    pub(crate) fn with_token(url: String, token: String, allow_self_signed: bool) -> APIResult<Self> {
+        let mut read_only_api = Self::new_read_only(url, allow_self_signed)?;
+        read_only_api.token = Some(token);
+        Ok(read_only_api)
+    }
 
     fn login(&mut self, username: String, password: String) -> APIResult<()> {
         #[derive(serde::Deserialize)]

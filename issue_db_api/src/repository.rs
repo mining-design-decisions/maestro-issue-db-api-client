@@ -51,6 +51,21 @@ impl IssueRepository {
             }
         )
     }
+    
+    pub fn new_with_token(url: String,
+                          token: String, 
+                          label_caching_policy: CachingPolicy,
+                          config_handling_policy: ConfigHandlingPolicy,
+                          allow_self_signed_certs: bool) -> APIResult<Self> {
+        let api = Arc::new(IssueAPI::with_token(url, token, allow_self_signed_certs)?);
+        Ok(
+            Self{
+                api,
+                label_caching: label_caching_policy,
+                config_handling: config_handling_policy
+            }
+        )
+    }
 
     pub fn search(&self,
                   query: Query,
