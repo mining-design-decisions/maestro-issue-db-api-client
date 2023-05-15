@@ -11,6 +11,7 @@ mod issues;
 mod config;
 mod errors;
 mod models;
+mod files;
 
 pub use repository::IssueRepository;
 pub use errors::APIResult;
@@ -37,6 +38,7 @@ mod python {
     use crate::repository::IssueRepo;
     use crate::tags::{Tag, TagType};
     use crate::errors::APIResult;
+    use crate::files::File;
     use super::*;
 
     create_exception!(issue_api, IssueAPIError, PyException);
@@ -359,6 +361,23 @@ mod python {
         fn delete_model_config(&self, model: &PyModel) -> PyResult<()> {
             api2py_error(self.repo.delete_model_config_by_id(model.inner.identifier()))
 
+        }
+
+        fn files(&self, category: Option<String>) -> PyResult<Vec<PyFile>> {
+            let result = api2py_error(self.repo.files(category))?
+                .into_iter().map(|f| PyFile{inner: f})
+                .collect();
+            Ok(result)
+        }
+
+        fn upload_file(&self, path: String, description: String, category: String) -> PyResult<PyFile> {
+            Ok(
+                PyFile{inner: api2py_error(self.repo.upload_file(path, description, category))?}
+            )
+        }
+
+        fn delete_file(&self, file: &PyFile) -> PyResult<()> {
+            api2py_error(self.repo.remove_file(file.inner.clone()))
         }
     }
 
@@ -1159,6 +1178,45 @@ mod python {
         }
     }
 
+    #[pyclass(name="File")]
+    #[allow(unused)]
+    struct PyFile {
+        inner: File
+    }
+
+    #[pymethods]
+    impl PyFile {
+        fn __repr__(&self) -> PyResult<String> {
+            let text = format!("<File|id={}>", self.inner.identifier());
+            Ok(text)
+        }
+
+        fn __richcmp__(&self, other: PyRef<PyFile>, op: CompareOp) -> Py<PyAny> {
+            let py = other.py();
+            match op {
+                CompareOp::Eq => (self.inner == other.inner).into_py(py),
+                CompareOp::Ne => (self.inner != other.inner).into_py(py),
+                _ => py.NotImplemented(),
+            }
+        }
+
+        fn identifier(&self) -> PyResult<String> {
+            Ok(self.inner.identifier())
+        }
+
+        fn description(&self) -> PyResult<String> {
+            Ok(self.inner.description())
+        }
+
+        fn category(&self) -> PyResult<String> {
+            Ok(self.inner.category())
+        }
+
+        fn download(&self, path: String) -> PyResult<()> {
+            api2py_error(self.inner.download(path))
+        }
+    }
+
     #[pymodule]
     fn issue_api(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         m.add("IssueAPIError", py.get_type::<IssueAPIError>())?;
@@ -1178,6 +1236,7 @@ mod python {
         m.add_class::<PyPerformance>()?;
         m.add_class::<PyComment>()?;
         m.add_class::<PyEmbedding>()?;
+        m.add_class::<PyFile>()?;
         Ok(())
     }
 }

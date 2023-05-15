@@ -17,6 +17,7 @@ use crate::tags::UnboundTag;
 use crate::util::initialize_lazy_field;
 use crate::errors::APIResult;
 use crate::errors::*;
+use crate::files::UnboundFile;
 use crate::models::{ModelInfo, UnboundModelConfig, UnboundModelVersion, UnboundTestRun};
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1162,5 +1163,58 @@ impl IssueAPI {
         let mut map = Map::new();
         map.insert("description".to_string(), Value::String(description));
         self.call_endpoint_json(endpoint.as_str(), Verb::Put, Value::Object(map))
+    }
+
+    /***************************************************************************
+     * Generic File API 
+     */
+    
+    pub(crate) fn get_all_files(&self, category: Option<String>) -> APIResult<Vec<UnboundFile>> {
+        let mut map = Map::new();
+        map.insert(
+            "category".to_string(), 
+            match category {
+                None => Value::Null,
+                Some(c) => Value::String(c)
+        });
+        let response = self.call_endpoint_json::<_, Vec<UnboundFile>>(
+            "files", Verb::Get, Value::Object(map)
+        )?;
+        Ok(response) 
+    }
+    
+    pub(crate) fn upload_file(&self, path: String, description: String, category: String) -> APIResult<String> {
+        #[derive(serde::Deserialize)]
+        struct UploadFileResponse {
+            file_id: String 
+        }
+        let form = multipart::Form::new()
+            .file("file", path)?
+            .text("description", description)
+            .text("category", category);
+        let response = self.call_endpoint_multipart::<UploadFileResponse>(
+            "files", Verb::Post, form
+        )?;
+        Ok(response.file_id)
+    }
+    
+    pub(crate) fn get_file(&self, file_id: String) -> APIResult<UnboundFile> {
+        let endpoint = format!("files/{}", file_id);
+        let response = self.call_endpoint_json::<_, UnboundFile>(
+            endpoint.as_str(), Verb::Get, Value::Object(Map::new())
+        )?;
+        Ok(response)
+    }
+    
+    pub(crate) fn delete_file(&self, file_id: String) -> APIResult<()> {
+        let endpoint = format!("files/{}", file_id);
+        self.call_endpoint_json(endpoint.as_str(), Verb::Delete, Value::Object(Map::new()))
+    }
+    
+    pub(crate) fn download_file(&self, file_id: String, path: String) -> APIResult<()> {
+        let endpoint = format!("files/{file_id}/file");
+        self.call_endpoint_download(
+            endpoint.as_str(), Verb::Get, Value::Object(Map::new()), path
+        )
     }
 }

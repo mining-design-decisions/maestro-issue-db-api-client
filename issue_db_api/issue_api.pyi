@@ -87,6 +87,15 @@ class IssueRepository:
     def delete_model_config(self, model: Model):
         ...
 
+    def files(self, category: str = None) -> list[File]:
+        ...
+
+    def upload_file(self, path: str, description: str, category: str) -> File:
+        ...
+
+    def delete_file(self, file: File):
+        ...
+
 
 class Repo:
     def __repr__(self) -> str:
@@ -496,4 +505,25 @@ class TestRun:
 
     @description.setter
     def description(self, description: str):
+        ...
+
+
+class File:
+
+    def __repr__(self) -> str:
+        ...
+
+    def __eq__(self, other) -> bool:
+        ...
+
+    def identifier(self) -> str:
+        ...
+
+    def description(self) -> str:
+        ...
+
+    def category(self) -> str:
+        ...
+
+    def download(self, path: str):
         ...

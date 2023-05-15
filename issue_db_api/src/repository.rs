@@ -10,6 +10,7 @@ use crate::models::Model;
 use crate::query::Query;
 use crate::tags::Tag;
 use crate::errors::APIResult;
+use crate::files::File;
 
 
 #[allow(unused)]
@@ -198,6 +199,22 @@ impl IssueRepository {
 
     pub(crate) fn delete_model_config_by_id(&self, id: String) -> APIResult<()> {
         self.api.delete_model_config(id)
+    }
+
+    pub fn files(&self, category: Option<String>) -> APIResult<Vec<File>> {
+        let result = self.api
+            .get_all_files(category)?
+            .into_iter().map(|f| f.into_bound_file(self.api.clone()))
+            .collect();
+        Ok(result)
+    }
+
+    pub fn upload_file(&self, path: String, description: String, category: String) -> APIResult<File> {
+        File::upload(self.api.clone(), path, description, category)
+    }
+
+    pub fn remove_file(&self, file: File) -> APIResult<()> {
+        file.delete()
     }
 }
 
