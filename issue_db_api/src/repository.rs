@@ -209,6 +209,10 @@ impl IssueRepository {
         Ok(result)
     }
 
+    pub fn get_file_by_id(&self, id: String) -> APIResult<File> {
+        self.api.get_file(id).map(|f| f.into_bound_file(self.api.clone()))
+    }
+
     pub fn upload_file(&self, path: String, description: String, category: String) -> APIResult<File> {
         File::upload(self.api.clone(), path, description, category)
     }

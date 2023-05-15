@@ -370,6 +370,10 @@ mod python {
             Ok(result)
         }
 
+        fn get_file_by_id(&self, id: String) -> PyResult<PyFile> {
+            Ok(PyFile{inner: api2py_error(self.repo.get_file_by_id(id))?})
+        }
+
         fn upload_file(&self, path: String, description: String, category: String) -> PyResult<PyFile> {
             Ok(
                 PyFile{inner: api2py_error(self.repo.upload_file(path, description, category))?}

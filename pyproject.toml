@@ -8,7 +8,7 @@ include = ["issue_db_api"]
 
 [project]
 name = "issue_db_api"
-version = "0.9.0"
+version = "0.9.1"
 authors = [
     {name = "Jesse Maarleveld"},
 ]
