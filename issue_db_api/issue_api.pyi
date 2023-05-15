@@ -90,6 +90,9 @@ class IssueRepository:
     def files(self, category: str = None) -> list[File]:
         ...
 
+    def get_file_by_id(self, id: str) -> File:
+        ...
+
     def upload_file(self, path: str, description: str, category: str) -> File:
         ...
 
