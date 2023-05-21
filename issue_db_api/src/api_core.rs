@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::io::Cursor;
+use std::time::Duration;
 
 #[cfg(feature = "blocking")]
 use reqwest::blocking::multipart;
@@ -19,6 +20,9 @@ use crate::errors::APIResult;
 use crate::errors::*;
 use crate::files::UnboundFile;
 use crate::models::{ModelInfo, UnboundModelConfig, UnboundModelVersion, UnboundTestRun};
+
+const CONNECT_TIMEOUT: Duration = Duration::new(30, 0);
+const READ_WRITE_TIMEOUT: Duration = Duration::new(10 * 60, 0);
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -275,6 +279,8 @@ impl IssueAPI {
     pub(crate) fn new_read_only(url: String, allow_self_signed: bool) -> APIResult<Self> {
         let client = reqwest::blocking::ClientBuilder::new()
             .danger_accept_invalid_certs(allow_self_signed)
+            .timeout(READ_WRITE_TIMEOUT)
+            .connect_timeout(CONNECT_TIMEOUT)
             .build()?;
         Ok(
             IssueAPI{
@@ -457,6 +463,8 @@ impl IssueAPI {
         let url = self.get_endpoint(suffix);
         let client = reqwest::ClientBuilder::new()
             .danger_accept_invalid_certs(self.allow_unsafe_ssl)
+            .timeout(READ_WRITE_TIMEOUT)
+            .connect_timeout(CONNECT_TIMEOUT)
             .build()?;
         let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
         let result: APIResult<()> = rt.block_on(async {

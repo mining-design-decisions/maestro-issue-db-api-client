@@ -131,6 +131,9 @@ class Query:
 
     def not_tag(self, name: str) -> Query:
         ...
+    
+    def to_json(self) -> object:
+        ...
 
 
 class Label:
