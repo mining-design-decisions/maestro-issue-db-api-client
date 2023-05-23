@@ -815,10 +815,14 @@ impl IssueAPI {
         map.insert("name".to_string(), Value::String(name));
         map.insert("config".to_string(),
                    Value::Object(Map::from_iter(config.into_iter())));
-        let result = self.call_endpoint_json::<_, String>(
+        #[derive(Debug, serde::Deserialize)]
+        struct NewEmbeddingResponse {
+            embedding_id: String
+        }
+        let result = self.call_endpoint_json::<_, NewEmbeddingResponse>(
             "embeddings", Verb::Post, Value::Object(map)
         )?;
-        Ok(result)
+        Ok(result.embedding_id)
     }
 
     pub(crate) fn get_embedding(&self, id: String) -> APIResult<UnboundEmbedding> {
