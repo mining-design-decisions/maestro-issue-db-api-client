@@ -20,6 +20,7 @@ use crate::errors::APIResult;
 use crate::errors::*;
 use crate::files::UnboundFile;
 use crate::models::{ModelInfo, UnboundModelConfig, UnboundModelVersion, UnboundTestRun};
+use crate::projects::{Project, UnboundProject};
 
 const CONNECT_TIMEOUT: Duration = Duration::new(30, 0);
 const READ_WRITE_TIMEOUT: Duration = Duration::new(10 * 60, 0);
@@ -901,6 +902,79 @@ impl IssueAPI {
             endpoint.as_str(), Verb::Get, Value::Object(Map::new())
         )?;
         Ok(result.projects)
+    }
+
+    pub(crate) fn get_all_projects(&self) -> APIResult<Vec<UnboundProject>> {
+        let unbound = self.call_endpoint_json::<_, Vec<UnboundProject>>(
+            "projects", Verb::Get, Value::Object(Map::new())
+        )?;
+        Ok(unbound)
+    }
+
+    pub(crate) fn create_new_project(&self,
+                                     ecosystem: String,
+                                     key: String,
+                                     properties: HashMap<String, Vec<String>>) -> APIResult<()> {
+        let converted = Map::from_iter(
+            properties
+                .into_iter()
+                .map(
+                    |(k, v)|
+                        (
+                            k,
+                            Value::Array(
+                                v.into_iter().map(|x| Value::String(x)).collect()
+                            )
+                        )
+                )
+        );
+        let mut map = Map::new();
+        map.insert("ecosystem".to_string(), Value::String(ecosystem));
+        map.insert("key".to_string(), Value::String(key));
+        map.insert("additional_properties".to_string(), Value::Object(converted));
+        self.call_endpoint_json("projects", Verb::Post, Value::Object(map))
+    }
+
+    pub(crate) fn get_project(&self,
+                              ecosystem: String,
+                              key: String) -> APIResult<UnboundProject> {
+        let endpoint = format!("projects/{ecosystem}/{key}");
+        let result = self.call_endpoint_json::<_, UnboundProject>(
+            endpoint.as_str(), Verb::Get, Value::Object(Map::new())
+        )?;
+        Ok(result)
+    }
+
+    pub(crate) fn update_project_properties(&self,
+                                            ecosystem: String,
+                                            key: String,
+                                            properties: HashMap<String, Vec<String>>) -> APIResult<()> {
+        let converted = Map::from_iter(
+            properties
+                .into_iter()
+                .map(
+                    |(k, v)|
+                        (
+                            k,
+                            Value::Array(
+                                v.into_iter().map(|x| Value::String(x)).collect()
+                            )
+                        )
+                )
+        );
+        let endpoint = format!("projects/{ecosystem}/{key}");
+        let mut map = Map::new();
+        map.insert("additional_properties".to_string(), Value::Object(converted));
+        self.call_endpoint_json(
+            endpoint.as_str(), Verb::Put, Value::Object(map)
+        )
+    }
+
+    pub(crate) fn delete_project(&self, ecosystem: String, key: String) -> APIResult<()> {
+        let endpoint = format!("projects/{ecosystem}/{key}");
+        self.call_endpoint_json(
+            endpoint.as_str(), Verb::Delete, Value::Object(Map::new())
+        )
     }
 
     /***************************************************************************

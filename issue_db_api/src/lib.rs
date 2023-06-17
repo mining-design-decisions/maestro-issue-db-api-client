@@ -12,6 +12,7 @@ mod config;
 mod errors;
 mod models;
 mod files;
+mod projects;
 
 pub use repository::IssueRepository;
 pub use errors::APIResult;
@@ -35,10 +36,11 @@ mod python {
     use crate::issues::Issue;
     use crate::labels::Label;
     use crate::models::{Model, ModelVersion, TestRun};
-    use crate::repository::IssueRepo;
+    use crate::projects::Project;
     use crate::tags::{Tag, TagType};
     use crate::errors::APIResult;
     use crate::files::File;
+    use crate::repository::Repo;
     use super::*;
 
     create_exception!(issue_api, IssueAPIError, PyException);
@@ -266,12 +268,34 @@ mod python {
         }
 
         #[getter]
-        fn repos(&self) -> PyResult<Vec<PyRepo>> {
-            let repos = api2py_error(self.repo.repos())?
+        fn projects(&self) -> PyResult<Vec<PyProject>> {
+            let projects = api2py_error(self.repo.projects())?
                 .into_iter()
-                .map(|r| PyRepo{inner: r})
+                .map(|x| PyProject{inner: x})
                 .collect();
-            Ok(repos)
+            Ok(projects)
+        }
+
+        fn add_project(&self,
+                       ecosystem: String,
+                       key: String,
+                       properties: HashMap<String, Vec<String>>) -> PyResult<PyProject> {
+            let raw = api2py_error(self.repo.add_project(ecosystem, key, properties))?;
+            Ok(PyProject{inner: raw})
+        }
+
+        fn remove_project(&self, project: &PyProject) -> PyResult<()> {
+            api2py_error(self.repo.delete_project(project.inner.clone()))
+        }
+
+        #[getter]
+        fn repos(&self) -> PyResult<Vec<PyRepo>> {
+            let raw = api2py_error(self.repo.repos())?;
+            let result = raw
+                .into_iter()
+                .map(|x| PyRepo{inner: x})
+                .collect();
+            Ok(result)
         }
 
         #[getter]
@@ -382,28 +406,6 @@ mod python {
 
         fn delete_file(&self, file: &PyFile) -> PyResult<()> {
             api2py_error(self.repo.remove_file(file.inner.clone()))
-        }
-    }
-
-    #[pyclass(name="IssueRepo")]
-    struct PyRepo {
-        inner: IssueRepo
-    }
-
-    #[pymethods]
-    impl PyRepo {
-        fn __repr__(&self) -> PyResult<String> {
-            Ok(format!("<IssueRepo|name={}>", self.inner.name()))
-        }
-
-        #[getter]
-        fn name(&self) -> PyResult<String> {
-            Ok(self.inner.name().clone())
-        }
-
-        #[getter]
-        fn projects(&self) -> PyResult<Vec<String>> {
-            api2py_error(self.inner.projects())
         }
     }
 
@@ -1221,6 +1223,97 @@ mod python {
         }
     }
 
+    #[pyclass(name="Project")]
+    #[allow(unused)]
+    struct PyProject {
+        inner: Project
+    }
+
+    #[pymethods]
+    impl PyProject {
+        fn __repr__(&self) -> PyResult<String> {
+            let text = format!("<Project|ecosystem={}, key={}>",
+                               self.inner.ecosystem(),
+                               self.inner.key());
+            Ok(text)
+        }
+
+        fn __richcmp__(&self, other: PyRef<PyProject>, op: CompareOp) -> Py<PyAny> {
+            let py = other.py();
+            match op {
+                CompareOp::Eq => (self.inner == other.inner).into_py(py),
+                CompareOp::Ne => (self.inner != other.inner).into_py(py),
+                _ => py.NotImplemented(),
+            }
+        }
+
+        #[getter]
+        fn ecosystem(&self) -> PyResult<String> {
+            Ok(self.inner.ecosystem())
+        }
+
+        #[getter]
+        fn key(&self) -> PyResult<String> {
+            Ok(self.inner.key())
+        }
+
+        #[getter]
+        fn properties(&self) -> PyResult<HashMap<String, Vec<String>>> {
+            api2py_error(self.inner.properties())
+        }
+
+        #[setter]
+        fn set_properties(&mut self, properties: HashMap<String, Vec<String>>) -> PyResult<()> {
+            api2py_error(self.inner.set_properties(properties))
+        }
+
+        fn set_property(&mut self, name: String, value: Vec<String>) -> PyResult<()> {
+            api2py_error(self.inner.set_property(name, value))
+        }
+    }
+
+    #[pyclass(name="Repo")]
+    struct PyRepo {
+        inner: Repo
+    }
+
+    #[pymethods]
+    impl PyRepo {
+        fn __repr__(&self) -> PyResult<String> {
+            let text = format!("<Repo|name={}>", self.inner.name());
+            Ok(text)
+        }
+
+        fn __richcmp__(&self, other: PyRef<PyRepo>, op: CompareOp) -> Py<PyAny> {
+            let py = other.py();
+            match op {
+                CompareOp::Eq => (self.inner == other.inner).into_py(py),
+                CompareOp::Ne => (self.inner != other.inner).into_py(py),
+                _ => py.NotImplemented(),
+            }
+        }
+
+        #[getter]
+        fn name(&self) -> PyResult<String> {
+            Ok(self.inner.name())
+        }
+
+        #[getter]
+        fn project_names(&self) -> PyResult<Vec<String>> {
+            api2py_error(self.inner.project_names())
+        }
+
+        #[getter]
+        fn projects(&self) -> PyResult<Vec<PyProject>> {
+            let projects = api2py_error(self.inner.projects())?;
+            let result = projects
+                .into_iter()
+                .map(|x| PyProject{inner: x})
+                .collect();
+            Ok(result)
+        }
+    }
+
     #[pymodule]
     fn issue_api(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         m.add("IssueAPIError", py.get_type::<IssueAPIError>())?;
@@ -1233,7 +1326,6 @@ mod python {
         m.add_class::<PyIssue>()?;
         m.add_class::<PyQuery>()?;
         m.add_class::<PyLabel>()?;
-        m.add_class::<PyRepo>()?;
         m.add_class::<PyTag>()?;
         m.add_class::<PyModel>()?;
         m.add_class::<PyVersion>()?;
@@ -1241,6 +1333,8 @@ mod python {
         m.add_class::<PyComment>()?;
         m.add_class::<PyEmbedding>()?;
         m.add_class::<PyFile>()?;
+        m.add_class::<PyRepo>()?;
+        m.add_class::<PyProject>()?;
         Ok(())
     }
 }

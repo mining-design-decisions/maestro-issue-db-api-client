@@ -48,6 +48,16 @@ class IssueRepository:
         ...
 
     @property
+    def projects(self) -> list[Project]:
+        ...
+
+    def add_project(self, ecosystem: str, key: str, properties: dict[str, str]) -> Project:
+        ...
+
+    def remove_project(self, project: Project):
+        ...
+
+    @projects
     def repos(self) -> list[Repo]:
         ...
 
@@ -100,8 +110,40 @@ class IssueRepository:
         ...
 
 
-class Repo:
+class Project:
+
     def __repr__(self) -> str:
+        ...
+
+    def __eq__(self, other) -> bool:
+        ...
+
+    @property
+    def ecosystem(self) -> str:
+        ...
+
+    @property
+    def key(self) -> str:
+        ...
+
+    @property
+    def properties(self) -> dict[str, str]:
+        ...
+
+    @properties.setter
+    def properties(self, properties: dict[str, str]):
+        ...
+
+    def set_property(self, name: str, value: str):
+        ...
+
+
+class Repo:
+
+    def __repr__(self) -> str:
+        ...
+
+    def __eq__(self, other) -> bool:
         ...
 
     @property
@@ -109,7 +151,11 @@ class Repo:
         ...
 
     @property
-    def projects(self) -> str:
+    def project_names(self) -> list[str]:
+        ...
+
+    @property
+    def projects(self) -> list[Project]:
         ...
 
 

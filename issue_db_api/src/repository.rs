@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use serde_json::Value;
 
@@ -11,6 +12,7 @@ use crate::query::Query;
 use crate::tags::Tag;
 use crate::errors::APIResult;
 use crate::files::File;
+use crate::projects::Project;
 
 
 #[allow(unused)]
@@ -95,12 +97,34 @@ impl IssueRepository {
         loading.load_issues(self.api.clone(), ids, self.label_caching)
     }
 
-    pub fn repos(&self) -> APIResult<Vec<IssueRepo>> {
-        let repos = self.api.get_all_repos()?
+    pub fn projects(&self) -> APIResult<Vec<Project>> {
+        let unbound = self.api.get_all_projects()?;
+        let bound = unbound
             .into_iter()
-            .map(|name| IssueRepo{name, api: self.api.clone()})
+            .map(|up| up.into_bound_project(self.api.clone(), self.config_handling))
             .collect();
-        Ok(repos)
+        Ok(bound)
+    }
+
+    pub fn add_project(&self,
+                       ecosystem: String,
+                       key: String,
+                       properties: HashMap<String, Vec<String>>) -> APIResult<Project> {
+        self.api.create_new_project(ecosystem.clone(), key.clone(), properties.clone())?;
+        Ok(Project::new(self.api.clone(), ecosystem, key, properties, self.config_handling))
+    }
+
+    pub fn delete_project(&self, project: Project) -> APIResult<()> {
+        self.api.delete_project(project.ecosystem(), project.key())
+    }
+
+    pub fn repos(&self) -> APIResult<Vec<Repo>> {
+        let names = self.api.get_all_repos()?;
+        let result = names
+            .into_iter()
+            .map(|name| Repo::new(self.api.clone(), name, self.config_handling))
+            .collect();
+        Ok(result)
     }
 
     pub fn tags(&self) -> APIResult<Vec<Tag>> {
@@ -223,17 +247,49 @@ impl IssueRepository {
 }
 
 
-pub struct IssueRepo {
+pub struct Repo {
+    api: Arc<IssueAPI>,
     name: String,
-    api: Arc<IssueAPI>
+    update_policy: ConfigHandlingPolicy
 }
 
-impl IssueRepo {
-    pub fn name(&self) -> &String {
-        &self.name 
+impl PartialEq for Repo {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
     }
-    
-    pub fn projects(&self) -> APIResult<Vec<String>> {
+}
+
+impl Eq for Repo {}
+
+impl Hash for Repo {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+    }
+}
+
+impl Repo {
+    fn new(api: Arc<IssueAPI>,
+           name: String,
+           update_policy: ConfigHandlingPolicy) -> Self {
+        Self{api, name, update_policy}
+    }
+
+    pub fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    pub fn project_names(&self) -> APIResult<Vec<String>> {
         self.api.get_projects_for_repo(self.name.clone())
+    }
+
+    pub fn projects(&self) -> APIResult<Vec<Project>> {
+        let names = self.api.get_projects_for_repo(self.name.clone())?;
+        let mut projects = Vec::with_capacity(names.len());
+        for name in names {
+            let unbound = self.api.get_project(self.name.clone(), name)?;
+            let bound = unbound.into_bound_project(self.api.clone(), self.update_policy);
+            projects.push(bound);
+        }
+        Ok(projects)
     }
 }
