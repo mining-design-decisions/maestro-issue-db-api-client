@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
+use serde_json::Value;
 use crate::api_core::IssueAPI;
 use crate::config::ConfigHandlingPolicy;
 use crate::errors::{APIError, APIResult};
@@ -10,7 +11,7 @@ use crate::errors::{APIError, APIResult};
 pub(crate) struct UnboundProject {
     pub(crate) ecosystem: String,
     pub(crate) key: String,
-    #[serde(rename(deserialize = "additional_properties"))] pub(crate) properties: HashMap<String, Vec<String>>
+    #[serde(rename(deserialize = "additional_properties"))] pub(crate) properties: HashMap<String, Value>
 }
 
 impl UnboundProject {
@@ -32,7 +33,7 @@ pub struct Project {
     api: Arc<IssueAPI>,
     ecosystem: String,
     key: String,
-    properties: HashMap<String, Vec<String>>,
+    properties: HashMap<String, Value>,
     update_policy: ConfigHandlingPolicy
 }
 
@@ -55,7 +56,7 @@ impl Project {
     pub(crate) fn new(api: Arc<IssueAPI>,
                       ecosystem: String,
                       key: String,
-                      properties: HashMap<String, Vec<String>>,
+                      properties: HashMap<String, Value>,
                       update_policy: ConfigHandlingPolicy) -> Self {
         Self{api, ecosystem, key, properties, update_policy}
     }
@@ -68,7 +69,7 @@ impl Project {
         self.key.clone()
     }
 
-    pub fn properties(&self) -> APIResult<HashMap<String, Vec<String>>> {
+    pub fn properties(&self) -> APIResult<HashMap<String, Value>> {
         match self.update_policy {
             ConfigHandlingPolicy::ReadFetchWriteWithFetch => {
                 let result = self.api
@@ -80,7 +81,7 @@ impl Project {
         }
     }
 
-    pub fn get_property(&self, name: String) -> APIResult<Vec<String>> {
+    pub fn get_property(&self, name: String) -> APIResult<Value> {
         // self.properties
         //     .get(&name)
         //     .ok_or(APIError::GenericError(format!("Unknown property: {name}")))
@@ -92,7 +93,7 @@ impl Project {
         value
     }
 
-    pub fn set_property(&mut self, name: String, value: Vec<String>) -> APIResult<()> {
+    pub fn set_property(&mut self, name: String, value: Value) -> APIResult<()> {
         let mut base_payload = match self.update_policy {
             ConfigHandlingPolicy::ReadLocalWriteNoFetch => self.properties.clone(),
             _ => {
@@ -105,7 +106,7 @@ impl Project {
         self.set_properties(base_payload)
     }
 
-    pub fn set_properties(&mut self, properties: HashMap<String, Vec<String>>) -> APIResult<()> {
+    pub fn set_properties(&mut self, properties: HashMap<String, Value>) -> APIResult<()> {
         self.properties = properties.clone();
         self.api.update_project_properties(self.ecosystem.clone(),
                                            self.key.clone(),

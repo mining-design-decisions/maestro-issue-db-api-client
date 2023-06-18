@@ -57,7 +57,7 @@ class IssueRepository:
     def remove_project(self, project: Project):
         ...
 
-    @projects
+    @property
     def repos(self) -> list[Repo]:
         ...
 
@@ -127,14 +127,17 @@ class Project:
         ...
 
     @property
-    def properties(self) -> dict[str, str]:
+    def properties(self) -> dict[str, str | list[str]]:
         ...
 
     @properties.setter
-    def properties(self, properties: dict[str, str]):
+    def properties(self, properties: dict[str, str | list[str]]):
         ...
 
-    def set_property(self, name: str, value: str):
+    def get_property(self, name: str) -> str | list[str]:
+        ...
+
+    def set_property(self, name: str, value: str | list[str]):
         ...
 
 

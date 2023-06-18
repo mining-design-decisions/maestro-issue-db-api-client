@@ -1258,17 +1258,32 @@ mod python {
         }
 
         #[getter]
-        fn properties(&self) -> PyResult<HashMap<String, Vec<String>>> {
-            api2py_error(self.inner.properties())
+        fn properties(&self, py: Python<'_>) -> PyResult<HashMap<String, PyObject>> {
+            let result = api2py_error(self.inner.properties())?
+                .into_iter()
+                .map(|(k, v)| (k, json_to_py(py, v)))
+                .collect();
+            Ok(result)
+        }
+
+        fn get_property(&self, py: Python<'_>, name: String) -> PyResult<PyObject> {
+            let raw = api2py_error(self.inner.get_property(name))?;
+            let converted = json_to_py(py, raw);
+            Ok(converted)
         }
 
         #[setter]
-        fn set_properties(&mut self, properties: HashMap<String, Vec<String>>) -> PyResult<()> {
-            api2py_error(self.inner.set_properties(properties))
+        fn set_properties(&mut self, properties: HashMap<String, &PyAny>) -> PyResult<()> {
+            let mut converted = HashMap::with_capacity(properties.len());
+            for (k, v) in properties {
+                converted.insert(k, py_to_json(v)?);
+            }
+            api2py_error(self.inner.set_properties(converted))
         }
 
-        fn set_property(&mut self, name: String, value: Vec<String>) -> PyResult<()> {
-            api2py_error(self.inner.set_property(name, value))
+        fn set_property(&mut self, name: String, value: &PyAny) -> PyResult<()> {
+            let converted = py_to_json(value)?;
+            api2py_error(self.inner.set_property(name, converted))
         }
     }
 

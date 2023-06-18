@@ -914,20 +914,8 @@ impl IssueAPI {
     pub(crate) fn create_new_project(&self,
                                      ecosystem: String,
                                      key: String,
-                                     properties: HashMap<String, Vec<String>>) -> APIResult<()> {
-        let converted = Map::from_iter(
-            properties
-                .into_iter()
-                .map(
-                    |(k, v)|
-                        (
-                            k,
-                            Value::Array(
-                                v.into_iter().map(|x| Value::String(x)).collect()
-                            )
-                        )
-                )
-        );
+                                     properties: HashMap<String, Value>) -> APIResult<()> {
+        let converted = Map::from_iter(properties.into_iter());
         let mut map = Map::new();
         map.insert("ecosystem".to_string(), Value::String(ecosystem));
         map.insert("key".to_string(), Value::String(key));
@@ -948,20 +936,8 @@ impl IssueAPI {
     pub(crate) fn update_project_properties(&self,
                                             ecosystem: String,
                                             key: String,
-                                            properties: HashMap<String, Vec<String>>) -> APIResult<()> {
-        let converted = Map::from_iter(
-            properties
-                .into_iter()
-                .map(
-                    |(k, v)|
-                        (
-                            k,
-                            Value::Array(
-                                v.into_iter().map(|x| Value::String(x)).collect()
-                            )
-                        )
-                )
-        );
+                                            properties: HashMap<String, Value>) -> APIResult<()> {
+        let converted = Map::from_iter(properties.into_iter());
         let endpoint = format!("projects/{ecosystem}/{key}");
         let mut map = Map::new();
         map.insert("additional_properties".to_string(), Value::Object(converted));
