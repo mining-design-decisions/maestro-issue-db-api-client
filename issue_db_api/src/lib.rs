@@ -279,8 +279,12 @@ mod python {
         fn add_project(&self,
                        ecosystem: String,
                        key: String,
-                       properties: HashMap<String, Vec<String>>) -> PyResult<PyProject> {
-            let raw = api2py_error(self.repo.add_project(ecosystem, key, properties))?;
+                       properties: HashMap<String, &PyAny>) -> PyResult<PyProject> {
+            let mut converted = HashMap::with_capacity(properties.len());
+            for (k, v) in properties {
+                converted.insert(k, py_to_json(v)?);
+            }
+            let raw = api2py_error(self.repo.add_project(ecosystem, key, converted))?;
             Ok(PyProject{inner: raw})
         }
 

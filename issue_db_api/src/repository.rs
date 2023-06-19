@@ -109,7 +109,7 @@ impl IssueRepository {
     pub fn add_project(&self,
                        ecosystem: String,
                        key: String,
-                       properties: HashMap<String, Vec<String>>) -> APIResult<Project> {
+                       properties: HashMap<String, Value>) -> APIResult<Project> {
         self.api.create_new_project(ecosystem.clone(), key.clone(), properties.clone())?;
         Ok(Project::new(self.api.clone(), ecosystem, key, properties, self.config_handling))
     }
