@@ -65,7 +65,7 @@ pub struct RawIssueType {
     #[serde(rename(deserialize = "iconUrl"))] pub icon_url: String,
     pub name: String,
     pub subtask: bool,
-    #[serde(rename(deserialize = "avatarId"))] pub avatar_id: u64
+    #[serde(rename(deserialize = "avatarId"))] pub avatar_id: Option<u64>
 }
 
 #[allow(unused)]
