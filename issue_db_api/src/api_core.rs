@@ -564,7 +564,7 @@ impl IssueAPI {
             data: HashMap<String, RawIssueData>
         }
         let response = self.call_endpoint_json::<_, IssueDataResponse>(
-            "issue-data", Verb::Get, Value::Object(map)
+            "issue-data", Verb::Post, Value::Object(map)
         )?.data;
         let result = response
             .into_iter()
